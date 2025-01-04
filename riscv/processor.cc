@@ -545,6 +545,8 @@ void state_t::reset(processor_t* const proc, reg_t max_isa, int index)
 
   csrmap[flexicas::CSR_FLAXICAS_PFC] = std::make_shared<flexicas_csr_t>(proc, index, proc->get_mmu()->get_translator());
 
+  csrmap[trace_capture::CSR_TRACE] = std::make_shared<trace_csr_t>(proc, index, 0);
+
   serialized = false;
 
   log_reg_write.clear();
