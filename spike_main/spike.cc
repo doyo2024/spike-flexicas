@@ -9,6 +9,7 @@
 #include "cachesim.h"
 #include "extension.h"
 #include "flexicas.h"
+#include "trace_capture.h"
 #include <dlfcn.h>
 #include <fesvr/option_parser.h>
 #include <stdexcept>
@@ -541,6 +542,8 @@ int main(int argc, char** argv)
   }
 
   flexicas::init(nprocs(), pfc_log_prefix);
+
+  trace_capture::init();
 
   for (size_t i = 0; i < cfg.nprocs(); i++)
   {

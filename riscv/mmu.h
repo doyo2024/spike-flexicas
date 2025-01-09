@@ -12,6 +12,7 @@
 #include "tlb.h"
 #include "devices.h"
 #include "flexicas.h"
+#include "trace_capture.h"
 #include "../fesvr/byteorder.h"
 #include "triggers.h"
 #include "cfg.h"
@@ -117,7 +118,12 @@ public:
       uint64_t paddr = addr + tlb_data[vpn % TLB_ENTRIES].target_offset;
       if(tr.va && !xlate_flags.is_special_access() && is_memory(paddr)) assert(tr.ppn == paddr >> PGSHIFT);
       if(tr.va) assert(check_tlb_permission_data(tr.pte, LOAD));
-      if(is_memory(paddr)) flexicas::read(paddr, core, false);
+      if(is_memory(paddr)) {
+        flexicas::read(paddr, core, false);
+        if (proc->get_csr(trace_capture::CSR_TRACE, false, true)) {
+          trace_capture::recordMem(paddr, sizeof(T), 0, proc->get_state()->pc);
+        }
+      }
     }
 
     if (unlikely(proc && proc->get_log_commits_enabled()))
@@ -167,7 +173,12 @@ public:
       uint64_t paddr = addr + tlb_data[vpn % TLB_ENTRIES].target_offset;
       if(tr.va && !xlate_flags.is_special_access() && is_memory(paddr)) assert(tr.ppn == paddr >> PGSHIFT);
       if(tr.va) assert(check_tlb_permission_data(tr.pte, STORE));
-      if(is_memory(paddr)) flexicas::write(paddr, core);
+      if(is_memory(paddr)){ 
+        flexicas::write(paddr, core);
+        if (proc->get_csr(trace_capture::CSR_TRACE, false, true)) {
+          trace_capture::recordMem(paddr, sizeof(T), 1, proc->get_state()->pc);
+        }
+      }
     }
 
     if (unlikely(proc && proc->get_log_commits_enabled()))

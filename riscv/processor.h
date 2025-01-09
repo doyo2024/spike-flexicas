@@ -17,7 +17,6 @@
 #include "triggers.h"
 #include "../fesvr/memif.h"
 #include "vector_unit.h"
-#include "trace_capture.h"
 
 #define N_HPMCOUNTERS 29
 

@@ -15,15 +15,16 @@ struct CompEvent {
   uint32_t flops;
 };
 
-enum class ReqType: uint8_t {
-  REQ_READ,
-  REQ_WRITE
-};
+// enum class ReqType: uint8_t {
+//   REQ_READ,
+//   REQ_WRITE
+// };
 
 struct MemEvent {
   uint64_t addr;    // pyhsical address
   uint64_t bytes;   // number of the requested bytes
-  ReqType type;     // read or write
+  int type;         // =0 read, =1 write
+  // ReqType type;     // read or write
 };
 
 struct EndMark {
@@ -32,6 +33,7 @@ struct EndMark {
 
 struct traceEvent {
   Tag tag;
+  uint64_t pc;
   union {
     CompEvent   compEvent;
     MemEvent    memEvent;
@@ -52,12 +54,12 @@ struct traceEvent {
     : tag{Tag::UNDEFINED}
   {}
 
-  traceEvent(CompTagType, uint32_t iops, uint32_t flops) noexcept
-    : compEvent{iops, flops}, tag{Tag::COMPUTE}
+  traceEvent(CompTagType, uint64_t pc, uint32_t iops, uint32_t flops) noexcept
+    : compEvent{iops, flops}, tag{Tag::COMPUTE}, pc{pc}
   {}
 
-  traceEvent(MemTagType, const MemEvent memEv) noexcept
-    : memEvent{memEv}, tag{Tag::MEMORY}
+  traceEvent(MemTagType, uint64_t pc, const MemEvent memEv) noexcept
+    : memEvent{memEv}, tag{Tag::MEMORY}, pc{pc}
   {}
 
   traceEvent(EndTagType) noexcept
