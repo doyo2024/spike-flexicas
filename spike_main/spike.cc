@@ -562,5 +562,6 @@ int main(int argc, char** argv)
     delete mem.second;
 
   flexicas::exit();
+  trace_capture::exit();
   return return_code;
 }

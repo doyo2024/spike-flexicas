@@ -120,7 +120,7 @@ public:
       if(tr.va) assert(check_tlb_permission_data(tr.pte, LOAD));
       if(is_memory(paddr)) {
         flexicas::read(paddr, core, false);
-        if (proc->get_csr(trace_capture::CSR_TRACE, false, true)) {
+        if (proc->capture) {
           trace_capture::recordMem(paddr, sizeof(T), 0, proc->get_state()->pc);
         }
       }
@@ -175,7 +175,7 @@ public:
       if(tr.va) assert(check_tlb_permission_data(tr.pte, STORE));
       if(is_memory(paddr)){ 
         flexicas::write(paddr, core);
-        if (proc->get_csr(trace_capture::CSR_TRACE, false, true)) {
+        if (proc->capture) {
           trace_capture::recordMem(paddr, sizeof(T), 1, proc->get_state()->pc);
         }
       }

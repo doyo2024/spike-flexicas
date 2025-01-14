@@ -38,7 +38,7 @@ reg_t logged_rv32i_NAME(processor_t* p, insn_t insn, reg_t pc)
   reg_t npc = sext_xlen(pc + insn_length(OPCODE));
   #include "insns/NAME.h"
   trace_opcode(p, OPCODE, insn);
-  if (p->get_csr(trace_capture::CSR_TRACE))
+  if (p->capture)
     trace_capture::recordEvent(OPCODE, pc);
   #undef xlen
   return npc;
@@ -50,7 +50,7 @@ reg_t logged_rv64i_NAME(processor_t* p, insn_t insn, reg_t pc)
   reg_t npc = sext_xlen(pc + insn_length(OPCODE));
   #include "insns/NAME.h"
   trace_opcode(p, OPCODE, insn);
-  if (p->get_csr(trace_capture::CSR_TRACE))
+  if (p->capture)
     trace_capture::recordEvent(OPCODE, pc);
   #undef xlen
   return npc;
@@ -68,7 +68,7 @@ reg_t fast_rv32e_NAME(processor_t* p, insn_t insn, reg_t pc)
   reg_t npc = sext_xlen(pc + insn_length(OPCODE));
   #include "insns/NAME.h"
   trace_opcode(p, OPCODE, insn);
-  if (p->get_csr(trace_capture::CSR_TRACE))
+  if (p->capture)
     trace_capture::recordEvent(OPCODE, pc);
   #undef xlen
   return npc;
@@ -80,7 +80,7 @@ reg_t fast_rv64e_NAME(processor_t* p, insn_t insn, reg_t pc)
   reg_t npc = sext_xlen(pc + insn_length(OPCODE));
   #include "insns/NAME.h"
   trace_opcode(p, OPCODE, insn);
-  if (p->get_csr(trace_capture::CSR_TRACE))
+  if (p->capture)
     trace_capture::recordEvent(OPCODE, pc);
   #undef xlen
   return npc;
@@ -95,7 +95,7 @@ reg_t logged_rv32e_NAME(processor_t* p, insn_t insn, reg_t pc)
   reg_t npc = sext_xlen(pc + insn_length(OPCODE));
   #include "insns/NAME.h"
   trace_opcode(p, OPCODE, insn);
-  if (p->get_csr(trace_capture::CSR_TRACE))
+  if (p->capture)
     trace_capture::recordEvent(OPCODE, pc);
   #undef xlen
   return npc;
@@ -107,7 +107,7 @@ reg_t logged_rv64e_NAME(processor_t* p, insn_t insn, reg_t pc)
   reg_t npc = sext_xlen(pc + insn_length(OPCODE));
   #include "insns/NAME.h"
   trace_opcode(p, OPCODE, insn);
-  if (p->get_csr(trace_capture::CSR_TRACE))
+  if (p->capture)
     trace_capture::recordEvent(OPCODE, pc);
   #undef xlen
   return npc;

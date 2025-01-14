@@ -31,6 +31,7 @@ namespace trace_capture {
     loggers.push_back(newLogger);
     curEvent.push_back(traceEvent{traceEvent::UndefTag});
 
+    // map opcode with related event
     memset(eventMap, 0, sizeof(eventMap));
 
     eventMap[0x13] = EventType::COMP_IOP;
@@ -49,7 +50,7 @@ namespace trace_capture {
     eventMap[0x53] = EventType::COMP_FLOP;
   }
 
-  void destroy() {
+  void exit() {
     while (!loggers.empty()) {
       traceLogger* now = loggers.back();
       delete now;

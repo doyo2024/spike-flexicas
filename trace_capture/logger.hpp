@@ -17,7 +17,7 @@ typedef uint64_t EventID;
 /** record trace in file **/
 class traceLogger {
 public:
-  traceLogger(ThreadID threadId, const std::string& eventDir, size_t BSize = 1) :
+  traceLogger(ThreadID threadId, const std::string& eventDir, size_t BSize = 1024) :
     threadId(threadId), filename(eventDir + "/trace-" + std::to_string(threadId) + ".out"),
     eventId(0), BufferSize(BSize) {
       traceFile.open(filename.c_str(), std::ios::out | std::ios::trunc);
@@ -60,10 +60,10 @@ private:
       buffer.pop();
       switch (ev.tag) {
         case Tag::COMPUTE: 
-          traceFile << "0 " << ev.compEvent.iops << " " << ev.compEvent.flops << std::endl;
+          traceFile << "0 " << ev.pc << " " << ev.compEvent.iops << " " << ev.compEvent.flops << std::endl;
           break;
         case Tag::MEMORY:
-          traceFile << "1 " << ev.memEvent.type << " " << ev.memEvent.addr << " " << ev.memEvent.bytes << std::endl;
+          traceFile << "1 " << ev.pc << " " << ev.memEvent.type << " " << ev.memEvent.addr << " " << ev.memEvent.bytes << std::endl;
           break;
         case Tag::END_OF_ENENTS:
           traceFile << ev.endMark.ed << std::endl;

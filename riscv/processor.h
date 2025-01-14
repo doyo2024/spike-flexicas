@@ -363,6 +363,9 @@ public:
 
   void check_if_lpad_required();
 
+  // When true, begin to capture trace
+  bool capture;
+
 private:
   const isa_parser_t * const isa;
   const cfg_t * const cfg;
