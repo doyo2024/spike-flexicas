@@ -1,6 +1,8 @@
 #ifndef TC_ENCODING_HPP
 #define TC_ENCODING_HPP
 
+typedef uint64_t insn_bits_t;
+
 #define insn_length(x) \
   (((x) & 0x03) < 0x03 ? 2 : \
    ((x) & 0x1f) < 0x1f ? 4 : \
@@ -8,9 +10,16 @@
    8)
 
 #define MATCH_C_ADD 0x9002
+#define MATCH_C_BEQZ 0xc001
+#define MATCH_C_BNEZ 0xe001
+#define MATCH_C_J 0xa001
+#define MATCH_C_JAL 0x2001
 #define MATCH_C_JALR 0x9002
 #define MATCH_C_JR 0x8002
 #define MATCH_C_MV 0x8002
 #define MATCH_C_SLLI 0x2
+#define MATCH_ECALL 0x73
+
+const uint64_t KERNEL_ADDR = 0x7fff00000000;
 
 #endif

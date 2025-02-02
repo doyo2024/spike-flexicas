@@ -3,10 +3,14 @@
 
 #include <cstdint>
 
+#include "encoding.hpp"   // type: insn_bits_t
+#include "thread.hpp"
+
 enum class Tag : uint8_t {
   UNDEFINED,
   COMPUTE,        // Computation event, a combination of iops and flops.
   MEMORY,         // A memory request, either read or write.
+  PTHREAD,        // Pthread API.
   END_OF_ENENTS   // The end of the event stream.
 };
 
@@ -31,31 +35,40 @@ struct EndMark {
   char ed = '@';
 };
 
+struct PThread {
+  uint64_t addr;  // virtual address (pc)
+  trace_capture::ThreadAPI type;
+};
+
 struct traceEvent {
   Tag tag;
   uint64_t pc;
+  insn_bits_t insn;   // the instruction, just used for test and debug, may be deleted soon
   union {
     CompEvent   compEvent;
     MemEvent    memEvent;
     EndMark     endMark;
+    PThread     pThread;
   };
 
   using UndefTagType = std::integral_constant<Tag, Tag::UNDEFINED>;
   using CompTagType = std::integral_constant<Tag, Tag::COMPUTE>;
   using MemTagType = std::integral_constant<Tag, Tag::MEMORY>;
   using EndTagType = std::integral_constant<Tag, Tag::END_OF_ENENTS>;
+  using PThreadTagType = std::integral_constant<Tag, Tag::PTHREAD>;
 
   static constexpr auto UndefTag = UndefTagType{};
   static constexpr auto CompTag = CompTagType{};
   static constexpr auto MemTag = MemTagType{};
   static constexpr auto EndTag = EndTagType{};
+  static constexpr auto PThreadTag = PThreadTagType{};
 
   traceEvent(UndefTagType) noexcept
     : tag{Tag::UNDEFINED}
   {}
 
-  traceEvent(CompTagType, uint64_t pc, uint32_t iops, uint32_t flops) noexcept
-    : compEvent{iops, flops}, tag{Tag::COMPUTE}, pc{pc}
+  traceEvent(CompTagType, uint64_t pc, uint32_t iops, uint32_t flops, insn_bits_t insn) noexcept
+    : compEvent{iops, flops}, tag{Tag::COMPUTE}, pc{pc}, insn{insn}
   {}
 
   traceEvent(MemTagType, uint64_t pc, const MemEvent memEv) noexcept
@@ -64,6 +77,10 @@ struct traceEvent {
 
   traceEvent(EndTagType) noexcept
     : endMark{}, tag{Tag::END_OF_ENENTS}
+  {}
+
+  traceEvent(PThreadTagType, uint64_t pc, trace_capture::ThreadAPI type) noexcept
+    : pThread{pc, type}, tag{Tag::PTHREAD}
   {}
 };
 

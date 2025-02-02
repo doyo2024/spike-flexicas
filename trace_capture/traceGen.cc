@@ -1,20 +1,22 @@
 #include "logger.hpp"
 #include "event.hpp"
 #include "encoding.hpp"
+#include "thread.hpp"
 
 #include <cstring>
 #include <iostream>
 #include <new>
 
 namespace trace_capture {
-  std::vector<traceLogger *> loggers;
-  std::vector<traceEvent> curEvent;
+  std::vector<traceLogger *> loggers;          // loggers for each thread
+  std::vector<traceEvent> curEvent;            // current event for each thread
   ThreadID threadId;
 
   enum class EventType {
     UNDEFINED,
     COMP_IOP,
     COMP_FLOP,
+    JUMP,
     MEMORY,
     END
   };
@@ -34,14 +36,19 @@ namespace trace_capture {
     // map opcode with related event
     memset(eventMap, 0, sizeof(eventMap));
 
+    eventMap[0x03] = EventType::MEMORY;
+    eventMap[0x23] = EventType::MEMORY;
+
     eventMap[0x13] = EventType::COMP_IOP;
     eventMap[0x1b] = EventType::COMP_IOP;
     eventMap[0x2f] = EventType::COMP_IOP;
     eventMap[0x33] = EventType::COMP_IOP;
+    eventMap[0x37] = EventType::COMP_IOP;
     eventMap[0x3b] = EventType::COMP_IOP;
-    eventMap[0x63] = EventType::COMP_IOP;
-    eventMap[0x67] = EventType::COMP_IOP;
-    eventMap[0x6f] = EventType::COMP_IOP;
+
+    eventMap[0x63] = EventType::JUMP;
+    eventMap[0x67] = EventType::JUMP;
+    eventMap[0x6f] = EventType::JUMP;
 
     eventMap[0x43] = EventType::COMP_FLOP;
     eventMap[0x47] = EventType::COMP_FLOP;
@@ -60,11 +67,11 @@ namespace trace_capture {
 
   #define curEv curEvent[threadId]
 
-  void recordComp(uint32_t isIOP, uint64_t pc) {
+  void recordComp(uint32_t isIOP, insn_bits_t insn, uint64_t pc) {
     // if (curEv.tag != Tag::COMPUTE) {
       if (curEv.tag != Tag::UNDEFINED)
         loggers[threadId]->record(curEv);
-      curEv = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1};
+      curEv = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1, insn};
     // } else {
     //   curEv.compEvent.iops += isIOP;
     //   curEv.compEvent.flops += isIOP ^ 1;
@@ -87,17 +94,33 @@ namespace trace_capture {
     loggers[threadId]->record(traceEvent{traceEvent::EndTag});
   }
 
-  void recordEvent(uint64_t opc, uint64_t pc) {
+  void recordAPI(ThreadAPI type, uint64_t pc) {
+    if (curEv.tag != Tag::UNDEFINED)
+      loggers[threadId]->record(curEv);
+    curEv = traceEvent(traceEvent::PThreadTag, pc, type);
+  }
+
+  void recordEvent(uint64_t opc, insn_bits_t insn, uint64_t pc) {
+    auto it = threadAPI.find(pc);
+    if (it != threadAPI.end()) {  // capture pthread API, maybe moved to other place soon.
+      recordAPI(it->second, pc);
+    }
+
     if (insn_length(opc) == 4) {
       EventType ev = eventMap[opc & 0x7f];
       if (ev == EventType::COMP_IOP) {
-        recordComp(1, pc);
+        recordComp(1, insn, pc);
       } else if (ev == EventType::COMP_FLOP) {
-        recordComp(0, pc);
+        recordComp(0, insn, pc);
       }
+      
+      else if (ev != EventType::MEMORY) {
+        recordComp(1, insn, pc);    // just for test
+      }
+
     } else {
       if ((opc & 0x3) == 0x1 || opc == MATCH_C_ADD || opc == MATCH_C_JALR || opc == MATCH_C_JR || opc == MATCH_C_MV || opc == MATCH_C_SLLI)
-        recordComp(1, pc);
+        recordComp(1, insn, pc);
     }
   }
 }

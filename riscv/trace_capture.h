@@ -6,23 +6,31 @@
 #include "csrs.h"
 #include "decode.h"
 #include "encoding.h"
-
+#include "processor.h"
 
 namespace trace_capture {
 
-  static const unsigned int CSR_TRACE = 0x800;  // id of the csr used by trace capturer.
+  static const unsigned int START = 0x10450;    // the entrance address of new process.
+  static const unsigned int CSR_TRACE  = 0x800; // id of the csr used by start trace generation.
+  static const unsigned int CSR_THREAD = 0x801; // id of the csr used by record addresses of pthreadAPIs.
 
   extern void init();
+  extern void init_pthread_addr(uint64_t addr);
   extern void exit();
-  extern void recordEvent(uint64_t opc, uint64_t pc);
-  extern void recordComp(uint32_t isIOP, uint64_t pc);
+  extern void recordEvent(uint64_t opc, insn_bits_t insn, uint64_t pc);
+  extern void recordComp(uint32_t isIOP, insn_bits_t insn, uint64_t pc);
   extern void recordMem(uint64_t addr, uint64_t bytes, int type, uint64_t pc);
   extern void recordEnd();
+
+  // inline void traceCapture(processor_t* proc, uint64_t OPCODE, insn_bits_t insn, uint64_t pc);
 }
 
 /**
  * Trace CSR used by trace capturer.
- * When this CSR is set, spike starts to capture trace.
+ * The last 2 bits determine whether to start trace generation:
+ * The last bit: set by start-test program when each test begins;
+ * The second to last bit: set when pc points to the entrance of the test program.
+ * When both bits are set, generate trace until the CSR is set to 0 again.
  */
 class trace_csr_t: public csr_t {
 public:
@@ -32,25 +40,44 @@ public:
   virtual reg_t read() const noexcept override {
     return val;
   }
-  
-  // bool check_capture() {
-  //   return this->read() == 3;
-  // }
+
 protected:
   virtual bool unlogged_write(const reg_t val) noexcept override {
     if (val) {
-      this->proc->capture = true;
+      this->val |= val;
+      if (this->val == 3)
+        this->proc->capture = true;
     } else {
+      this->val = 0;
       this->proc->capture = false;
       trace_capture::recordEnd();
     }
-    this->val = val;
     return true;
   }
 private:
   reg_t val;
 };
 
-// typedef std::shared_ptr<trace_csr_t> trace_csr_t_p;
+/**
+ * Used to transfer the address of pthread API.
+ * It will be set by start-test program after the analysis of tests' symtab finishes.
+ */
+class thread_csr_t: public csr_t {
+public:
+  thread_csr_t(processor_t* const proc, const reg_t addr, const reg_t init)
+   : csr_t(proc, addr), val(init) {}
+
+  virtual reg_t read() const noexcept override {
+    return val;
+  }
+protected:
+  virtual bool unlogged_write(const reg_t val) noexcept override {
+    this->val = val;
+    trace_capture::init_pthread_addr(val);
+    return true;
+  }
+private:
+  reg_t val;
+};
 
 #endif

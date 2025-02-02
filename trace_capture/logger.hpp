@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <queue>
 
@@ -58,15 +59,25 @@ private:
     while (!buffer.empty()) {
       traceEvent ev = buffer.front();
       buffer.pop();
+      if (ev.pc >= KERNEL_ADDR) {
+        traceFile << "*";
+        if (buffer.front().pc < KERNEL_ADDR) {
+          traceFile << std::endl;
+        }
+        continue;
+      }
       switch (ev.tag) {
         case Tag::COMPUTE: 
-          traceFile << "0 " << ev.pc << " " << ev.compEvent.iops << " " << ev.compEvent.flops << std::endl;
+          traceFile << "0 " << std::hex << std::setw(16) << std::setfill('0') << ev.pc << " " << ev.compEvent.iops << " " << ev.compEvent.flops << " " << std::setw(8) << std::setfill('0') << ev.insn << std::endl;
           break;
         case Tag::MEMORY:
-          traceFile << "1 " << ev.pc << " " << ev.memEvent.type << " " << ev.memEvent.addr << " " << ev.memEvent.bytes << std::endl;
+          traceFile << "1 " << std::hex << std::setw(16) << std::setfill('0') << ev.pc << " " << ev.memEvent.type << " " << ev.memEvent.addr << " " << ev.memEvent.bytes << std::endl;
           break;
         case Tag::END_OF_ENENTS:
           traceFile << ev.endMark.ed << std::endl;
+          break;
+        case Tag::PTHREAD:
+          traceFile << "3 " << std::hex << std::setw(16) << std::setfill('0') << ev.pThread.addr << " " << trace_capture::APItoString(ev.pThread.type) << std::endl;
           break;
         default:
           std::cerr << "Unexpected Thread Event Type!" << std::endl;

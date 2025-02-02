@@ -7,6 +7,7 @@ riscv_subproject_deps = \
 	fesvr \
 	softfloat \
 	flexicas \
+  traceGen \
 
 riscv_CFLAGS = -fPIC -I$(src_dir)/fdt
 
@@ -47,6 +48,7 @@ riscv_install_hdrs = \
 	vector_unit.h \
 	tlb.h \
 	flexicas.h \
+  trace_capture.h
 
 riscv_precompiled_hdrs = \
 	insn_template.h \
