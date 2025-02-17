@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <unordered_map>
 
+typedef int16_t ThreadID;
+
 namespace trace_capture {
   enum class ThreadAPI : uint8_t {
     UNDEFINED,
@@ -66,6 +68,14 @@ namespace trace_capture {
   void clean_pthread_addr() {
     threadAPI.clear();
   }
+
+  bool isThreadAPI(uint64_t pc) {
+    auto it = threadAPI.find(pc);
+    return (it != threadAPI.end());
+  }
+
+  std::unordered_map<uint64_t, ThreadID> threadMap;   // map virtual address with threadID
+  uint16_t threadCnt = 0;
 }
 
 #endif

@@ -2,15 +2,19 @@
 #include "event.hpp"
 #include "encoding.hpp"
 #include "thread.hpp"
+#include "processor.hpp"
 
 #include <cstring>
 #include <iostream>
 #include <new>
 
 namespace trace_capture {
+
   std::vector<traceLogger *> loggers;          // loggers for each thread
   std::vector<traceEvent> curEvent;            // current event for each thread
+  std::vector<Xregs *> funcArgs;               // record function arguments for each core
   ThreadID threadId;
+  ProcID procId;
 
   enum class EventType {
     UNDEFINED,
@@ -25,13 +29,16 @@ namespace trace_capture {
 
   void init() {
     threadId = 0;
+    procId = 0;
     char eventDir[] = "/home/spike/Desktop/trace";
     traceLogger* newLogger = new traceLogger(threadId, eventDir);
+    Xregs* newRegs = new Xregs();
 
-    assert(newLogger != nullptr);
+    assert(newLogger != nullptr && newRegs != nullptr);
 
     loggers.push_back(newLogger);
     curEvent.push_back(traceEvent{traceEvent::UndefTag});
+    funcArgs.push_back(newRegs);
 
     // map opcode with related event
     memset(eventMap, 0, sizeof(eventMap));
@@ -65,13 +72,21 @@ namespace trace_capture {
     }
   }
 
+  void recordArgs(int64_t data, int id) {
+    funcArgs[procId]->update(data, id);
+  }
+
+  int64_t getArgs(int id) {
+    return funcArgs[procId]->get(id);
+  }
+
   #define curEv curEvent[threadId]
 
   void recordComp(uint32_t isIOP, insn_bits_t insn, uint64_t pc) {
     // if (curEv.tag != Tag::COMPUTE) {
       if (curEv.tag != Tag::UNDEFINED)
         loggers[threadId]->record(curEv);
-      curEv = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1, insn};
+      curEv = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1, insn, getArgs(4)};
     // } else {
     //   curEv.compEvent.iops += isIOP;
     //   curEv.compEvent.flops += isIOP ^ 1;
@@ -94,17 +109,47 @@ namespace trace_capture {
     loggers[threadId]->record(traceEvent{traceEvent::EndTag});
   }
 
-  void recordAPI(ThreadAPI type, uint64_t pc) {
+  void recordAPI(uint64_t pc) {    
+    ThreadAPI type = threadAPI[pc];
+    PThread api;
+    api.addr = pc;
+    api.type = type;
+
+    switch(type) {
+      case ThreadAPI::PTHREAD_CREATE:
+        api.targetAddr = getArgs(10);
+        api.targetId = ++threadCnt;
+        threadMap[api.targetAddr] = api.targetAddr;
+        break;
+      case ThreadAPI::PTHREAD_MUTEX_LOCK:
+      case ThreadAPI::PTHREAD_MUTEX_UNLOCK:
+      case ThreadAPI::PTHREAD_SPIN_LOCK:
+      case ThreadAPI::PTHREAD_SPIN_UNLOCK:
+      case ThreadAPI::PTHREAD_BARRIER_WAIT:
+        api.targetAddr = getArgs(10);
+        break;
+      case ThreadAPI::PTHREAD_JOIN:
+      case ThreadAPI::PTHREAD_BARRIER_INIT:
+        api.targetId = getArgs(10);
+        break;
+      default:
+        api.type = ThreadAPI::UNDEFINED;
+        break;
+    }
+
+    if (api.type == ThreadAPI::UNDEFINED)
+      return;
+
     if (curEv.tag != Tag::UNDEFINED)
       loggers[threadId]->record(curEv);
-    curEv = traceEvent(traceEvent::PThreadTag, pc, type);
+    curEv = traceEvent(traceEvent::PThreadTag, pc, api, getArgs(4));
   }
 
-  void recordEvent(uint64_t opc, insn_bits_t insn, uint64_t pc) {
-    auto it = threadAPI.find(pc);
-    if (it != threadAPI.end()) {  // capture pthread API, maybe moved to other place soon.
-      recordAPI(it->second, pc);
-    }
+  void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc) {
+    // auto it = threadAPI.find(pc);
+    // if (it != threadAPI.end()) {  // capture pthread API, maybe moved to other place soon.
+    //   recordAPI(it->second, pc);
+    // }
 
     if (insn_length(opc) == 4) {
       EventType ev = eventMap[opc & 0x7f];

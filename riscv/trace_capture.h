@@ -17,12 +17,15 @@ namespace trace_capture {
   extern void init();
   extern void init_pthread_addr(uint64_t addr);
   extern void exit();
-  extern void recordEvent(uint64_t opc, insn_bits_t insn, uint64_t pc);
   extern void recordComp(uint32_t isIOP, insn_bits_t insn, uint64_t pc);
   extern void recordMem(uint64_t addr, uint64_t bytes, int type, uint64_t pc);
   extern void recordEnd();
+  extern void recordAPI(uint64_t pc);
+  extern void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc);
+  extern void recordArgs(int64_t data, int id);
+  extern bool isThreadAPI(uint64_t pc);
 
-  // inline void traceCapture(processor_t* proc, uint64_t OPCODE, insn_bits_t insn, uint64_t pc);
+  void recordEvent(processor_t* proc, uint64_t opc, insn_bits_t insn, uint64_t pc);
 }
 
 /**

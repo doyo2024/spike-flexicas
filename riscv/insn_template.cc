@@ -9,7 +9,7 @@ namespace trace_capture{
    */
   inline void traceCapture_NAME(processor_t* proc, insn_bits_t opc, insn_bits_t insn, uint64_t pc) {
     if (proc->capture) {
-        trace_capture::recordEvent(opc, insn, pc);
+      trace_capture::recordEvent(proc, opc, insn, pc);
     }
   }
 }

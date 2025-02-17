@@ -36,13 +36,16 @@ struct EndMark {
 };
 
 struct PThread {
-  uint64_t addr;  // virtual address (pc)
+  uint64_t addr;  // virtual address (pc) of the api
   trace_capture::ThreadAPI type;
+  ThreadID targetId;
+  uint64_t targetAddr;
 };
 
 struct traceEvent {
   Tag tag;
   uint64_t pc;
+  uint64_t tp;        // the register tp, just used for test and debug, may be deleted soon
   insn_bits_t insn;   // the instruction, just used for test and debug, may be deleted soon
   union {
     CompEvent   compEvent;
@@ -67,8 +70,8 @@ struct traceEvent {
     : tag{Tag::UNDEFINED}
   {}
 
-  traceEvent(CompTagType, uint64_t pc, uint32_t iops, uint32_t flops, insn_bits_t insn) noexcept
-    : compEvent{iops, flops}, tag{Tag::COMPUTE}, pc{pc}, insn{insn}
+  traceEvent(CompTagType, uint64_t pc, uint32_t iops, uint32_t flops, insn_bits_t insn, uint64_t tp) noexcept
+    : compEvent{iops, flops}, tag{Tag::COMPUTE}, pc{pc}, insn{insn}, tp{tp}
   {}
 
   traceEvent(MemTagType, uint64_t pc, const MemEvent memEv) noexcept
@@ -79,8 +82,8 @@ struct traceEvent {
     : endMark{}, tag{Tag::END_OF_ENENTS}
   {}
 
-  traceEvent(PThreadTagType, uint64_t pc, trace_capture::ThreadAPI type) noexcept
-    : pThread{pc, type}, tag{Tag::PTHREAD}
+  traceEvent(PThreadTagType, uint64_t pc, const PThread api, uint64_t tp) noexcept
+    : pThread{api}, tag{Tag::PTHREAD}, tp{tp}
   {}
 };
 

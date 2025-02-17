@@ -1,7 +1,10 @@
 #ifndef TC_ENCODING_HPP
 #define TC_ENCODING_HPP
 
+#include <cstdint>
+
 typedef uint64_t insn_bits_t;
+typedef uint64_t addr_t;
 
 #define insn_length(x) \
   (((x) & 0x03) < 0x03 ? 2 : \
@@ -21,5 +24,10 @@ typedef uint64_t insn_bits_t;
 #define MATCH_ECALL 0x73
 
 const uint64_t KERNEL_ADDR = 0x7fff00000000;
+
+enum class ReqType: uint8_t {
+  REQ_READ,
+  REQ_WRITE
+};
 
 #endif

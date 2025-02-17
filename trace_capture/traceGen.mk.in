@@ -1,0 +1,11 @@
+traceGen_subproject_deps = \
+
+traceGen_install_shared_lib = yes
+
+traceGen_install_hdrs = \
+
+traceGen_srcs = \
+	traceGen.cc \
+
+traceGen_precompiled = \
+	@top_srcdir@/trace_capture/traceGen.a \

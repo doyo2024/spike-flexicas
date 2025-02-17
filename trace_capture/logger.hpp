@@ -12,8 +12,9 @@
 
 #include "event.hpp"
 
-typedef int16_t ThreadID;
 typedef uint64_t EventID;
+
+#define output(width, var) std::hex << std::setw(width) << std::setfill('0') << var
 
 /** record trace in file **/
 class traceLogger {
@@ -55,6 +56,30 @@ private:
   std::string filename;
   std::ofstream traceFile;
 
+  void APIinfo(PThread pThread) {
+    switch(pThread.type) {
+      case trace_capture::ThreadAPI::PTHREAD_CREATE:
+      case trace_capture::ThreadAPI::PTHREAD_MUTEX_LOCK:
+      case trace_capture::ThreadAPI::PTHREAD_MUTEX_UNLOCK:
+      case trace_capture::ThreadAPI::PTHREAD_SPIN_LOCK:
+      case trace_capture::ThreadAPI::PTHREAD_SPIN_UNLOCK:
+        traceFile << " " << pThread.targetAddr << std::endl;
+        break;
+      case trace_capture::ThreadAPI::PTHREAD_JOIN:
+        traceFile << " " << pThread.targetId << std::endl;
+        break;
+      case trace_capture::ThreadAPI::PTHREAD_BARRIER_INIT:
+      case trace_capture::ThreadAPI::PTHREAD_BARRIER_WAIT:
+      case trace_capture::ThreadAPI::PTHREAD_BARRIER_DESTROY:
+      case trace_capture::ThreadAPI::PTHREAD_COND_WAIT:
+      case trace_capture::ThreadAPI::PTHREAD_COND_SIGNAL:
+      case trace_capture::ThreadAPI::UNDEFINED:
+      default:
+        traceFile << std::endl;
+        break;
+    }
+  }
+
   void flush() {
     while (!buffer.empty()) {
       traceEvent ev = buffer.front();
@@ -68,16 +93,17 @@ private:
       }
       switch (ev.tag) {
         case Tag::COMPUTE: 
-          traceFile << "0 " << std::hex << std::setw(16) << std::setfill('0') << ev.pc << " " << ev.compEvent.iops << " " << ev.compEvent.flops << " " << std::setw(8) << std::setfill('0') << ev.insn << std::endl;
+          traceFile << "0 " << output(16, ev.pc) << " " << ev.compEvent.iops << " " << ev.compEvent.flops << " " << std::setw(8) << std::setfill('0') << ev.insn << " " << output(16, ev.tp) << std::endl;
           break;
         case Tag::MEMORY:
-          traceFile << "1 " << std::hex << std::setw(16) << std::setfill('0') << ev.pc << " " << ev.memEvent.type << " " << ev.memEvent.addr << " " << ev.memEvent.bytes << std::endl;
+          traceFile << "1 " << output(16, ev.pc) << " " << ev.memEvent.type << " " << ev.memEvent.addr << " " << ev.memEvent.bytes << std::endl;
           break;
         case Tag::END_OF_ENENTS:
           traceFile << ev.endMark.ed << std::endl;
           break;
         case Tag::PTHREAD:
-          traceFile << "3 " << std::hex << std::setw(16) << std::setfill('0') << ev.pThread.addr << " " << trace_capture::APItoString(ev.pThread.type) << std::endl;
+          traceFile << "2 " << output(16, ev.pThread.addr) << " " << trace_capture::APItoString(ev.pThread.type) << " " << output(16, ev.tp);
+          APIinfo(ev.pThread);
           break;
         default:
           std::cerr << "Unexpected Thread Event Type!" << std::endl;

@@ -78,6 +78,7 @@ riscv_srcs = \
 	socketif.cc \
 	cfg.cc \
 	tlb.cc \
+  trace_capture.cc \
 	$(riscv_gen_srcs) \
 
 riscv_test_srcs = \
