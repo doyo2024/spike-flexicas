@@ -6,6 +6,11 @@
 typedef uint64_t insn_bits_t;
 typedef uint64_t addr_t;
 
+typedef uint8_t ProcID;
+typedef uint16_t ThreadID;
+typedef uint32_t CurEventID;
+typedef uint64_t EventID;
+
 #define insn_length(x) \
   (((x) & 0x03) < 0x03 ? 2 : \
    ((x) & 0x1f) < 0x1f ? 4 : \
@@ -24,6 +29,7 @@ typedef uint64_t addr_t;
 #define MATCH_ECALL 0x73
 
 const uint64_t KERNEL_ADDR = 0x7fff00000000;
+const uint64_t MACHINE_ADDR = 0x80000000;
 
 enum class ReqType: uint8_t {
   REQ_READ,

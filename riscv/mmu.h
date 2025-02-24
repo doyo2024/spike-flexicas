@@ -121,7 +121,10 @@ public:
       if(is_memory(paddr)) {
         flexicas::read(paddr, core, false);
         if (proc->capture) {
-          trace_capture::recordMem(paddr, sizeof(T), 0, proc->get_state()->pc);
+          trace_capture::recordArgs(proc->get_state()->XPR[4], 4);       // record register tp, just for test
+          // trace_capture::recordArgs(proc->get_state()->satp->read(), 0); // record CSR satp, just for test
+          trace_capture::recordArgs(proc->get_state()->csrmap[CSR_SSCRATCH]->read(), 0);       // record CSR sscratch, just for test
+          trace_capture::recordMem(addr, paddr, sizeof(T), 0, proc->get_state()->pc, from_target(res));
         }
       }
     }
@@ -176,7 +179,10 @@ public:
       if(is_memory(paddr)){ 
         flexicas::write(paddr, core);
         if (proc->capture) {
-          trace_capture::recordMem(paddr, sizeof(T), 1, proc->get_state()->pc);
+          trace_capture::recordArgs(proc->get_state()->XPR[4], 4);       // record register tp, just for test
+          // trace_capture::recordArgs(proc->get_state()->satp->read(), 0); // record CSR satp, just for test
+          trace_capture::recordArgs(proc->get_state()->csrmap[CSR_SSCRATCH]->read(), 0);       // record CSR sscratch, just for test
+          trace_capture::recordMem(addr, paddr, sizeof(T), 1, proc->get_state()->pc, val);
         }
       }
     }

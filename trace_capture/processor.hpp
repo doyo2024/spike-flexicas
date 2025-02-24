@@ -8,8 +8,6 @@
 #include <cstdint>
 #include <cstring>
 
-typedef uint8_t ProcID;
-
 template<class T, uint32_t N>
 class regs {
 public:

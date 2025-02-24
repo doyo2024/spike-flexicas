@@ -6,9 +6,8 @@
  */
 
 #include <cstdint>
+#include <vector>
 #include <unordered_map>
-
-typedef int16_t ThreadID;
 
 namespace trace_capture {
   enum class ThreadAPI : uint8_t {
@@ -76,6 +75,8 @@ namespace trace_capture {
 
   std::unordered_map<uint64_t, ThreadID> threadMap;   // map virtual address with threadID
   uint16_t threadCnt = 0;
+
+  std::vector<CurEventID> curEventId;
 }
 
 #endif

@@ -10,7 +10,9 @@
 
 namespace trace_capture {
 
-  static const unsigned int START = 0x10450;    // the entrance address of new process.
+  // static const unsigned int START = 0x10450;    // the entrance address of new process.
+  extern uint64_t START; // the entrance address
+  extern uint64_t MAIN;  // the main function
   static const unsigned int CSR_TRACE  = 0x800; // id of the csr used by start trace generation.
   static const unsigned int CSR_THREAD = 0x801; // id of the csr used by record addresses of pthreadAPIs.
 
@@ -18,9 +20,10 @@ namespace trace_capture {
   extern void init_pthread_addr(uint64_t addr);
   extern void exit();
   extern void recordComp(uint32_t isIOP, insn_bits_t insn, uint64_t pc);
-  extern void recordMem(uint64_t addr, uint64_t bytes, int type, uint64_t pc);
+  extern void recordMem(uint64_t vaddr, uint64_t addr, uint64_t bytes, int type, uint64_t pc, uint64_t val);
   extern void recordEnd();
   extern void recordAPI(uint64_t pc);
+  extern void recordEcall(uint64_t pc);
   extern void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc);
   extern void recordArgs(int64_t data, int id);
   extern bool isThreadAPI(uint64_t pc);
@@ -49,6 +52,7 @@ protected:
     if (val) {
       this->val |= val;
       if (this->val == 3)
+      // if (this->val)
         this->proc->capture = true;
     } else {
       this->val = 0;
@@ -68,7 +72,7 @@ private:
 class thread_csr_t: public csr_t {
 public:
   thread_csr_t(processor_t* const proc, const reg_t addr, const reg_t init)
-   : csr_t(proc, addr), val(init) {}
+   : csr_t(proc, addr), val(init), cnt(0) {}
 
   virtual reg_t read() const noexcept override {
     return val;
@@ -76,10 +80,17 @@ public:
 protected:
   virtual bool unlogged_write(const reg_t val) noexcept override {
     this->val = val;
-    trace_capture::init_pthread_addr(val);
+    if (cnt == 0)
+      trace_capture::START = val;
+    else if (cnt == 1)
+      trace_capture::MAIN = val;
+    else
+      trace_capture::init_pthread_addr(val);
+    cnt++;
     return true;
   }
 private:
+  uint8_t cnt;
   reg_t val;
 };
 

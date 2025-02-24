@@ -86,18 +86,23 @@ namespace trace_capture {
     // if (curEv.tag != Tag::COMPUTE) {
       if (curEv.tag != Tag::UNDEFINED)
         loggers[threadId]->record(curEv);
-      curEv = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1, insn, getArgs(4)};
+
+    if (curEv.pc >= KERNEL_ADDR && pc < KERNEL_ADDR)
+      curEv = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1, insn, getArgs(10), getArgs(0)}; // output the return value of ecall, just for tests
+    else
+
+      curEv = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1, insn, getArgs(4), getArgs(0)};
     // } else {
     //   curEv.compEvent.iops += isIOP;
     //   curEv.compEvent.flops += isIOP ^ 1;
     // }
   }
 
-  void recordMem(uint64_t addr, uint64_t bytes, int type, uint64_t pc) {
+  void recordMem(uint64_t vaddr, uint64_t addr, uint64_t bytes, int type, uint64_t pc, uint64_t val) {
     // if (curEv.tag != Tag::MEMORY || curEv.memEvent.type != type || curEv.memEvent.addr + curEv.memEvent.bytes != addr) {
       if (curEv.tag != Tag::UNDEFINED)
         loggers[threadId]->record(curEv);
-      curEv = traceEvent{traceEvent::MemTag, pc, MemEvent{addr, bytes, type}};
+      curEv = traceEvent{traceEvent::MemTag, pc, MemEvent{vaddr, addr, bytes, val, type}, getArgs(4), getArgs(0)};
     // } else {
     //   curEv.memEvent.bytes += bytes;
     // }
@@ -145,6 +150,12 @@ namespace trace_capture {
     curEv = traceEvent(traceEvent::PThreadTag, pc, api, getArgs(4));
   }
 
+  void recordEcall(uint64_t pc) {
+    if (curEv.tag != Tag::UNDEFINED)
+      loggers[threadId]->record(curEv);
+    curEv = traceEvent(traceEvent::EcallTag, pc, getArgs(17), getArgs(4));
+  }
+
   void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc) {
     // auto it = threadAPI.find(pc);
     // if (it != threadAPI.end()) {  // capture pthread API, maybe moved to other place soon.
@@ -158,7 +169,7 @@ namespace trace_capture {
       } else if (ev == EventType::COMP_FLOP) {
         recordComp(0, insn, pc);
       }
-      
+
       else if (ev != EventType::MEMORY) {
         recordComp(1, insn, pc);    // just for test
       }
