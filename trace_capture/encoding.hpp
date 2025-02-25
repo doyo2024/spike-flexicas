@@ -7,7 +7,7 @@ typedef uint64_t insn_bits_t;
 typedef uint64_t addr_t;
 
 typedef uint8_t ProcID;
-typedef uint16_t ThreadID;
+typedef int16_t ThreadID;
 typedef uint32_t CurEventID;
 typedef uint64_t EventID;
 
@@ -27,9 +27,12 @@ typedef uint64_t EventID;
 #define MATCH_C_MV 0x8002
 #define MATCH_C_SLLI 0x2
 #define MATCH_ECALL 0x73
+#define MATCH_MRET 0x30200073
+#define MATCH_SRET 0x10200073
 
-const uint64_t KERNEL_ADDR = 0x7fff00000000;
-const uint64_t MACHINE_ADDR = 0x80000000;
+// const addr_t KERNEL_ADDR = 0x7fff00000000;
+// const addr_t MACHINE_ADDR = 0x80000000;
+const addr_t KERNEL_ADDR = 0x80000000;
 
 enum class ReqType: uint8_t {
   REQ_READ,

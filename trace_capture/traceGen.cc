@@ -1,8 +1,4 @@
-#include "logger.hpp"
-#include "event.hpp"
-#include "encoding.hpp"
-#include "thread.hpp"
-#include "processor.hpp"
+#include "handler.hpp"
 
 #include <cstring>
 #include <iostream>
@@ -10,11 +6,13 @@
 
 namespace trace_capture {
 
-  std::vector<traceLogger *> loggers;          // loggers for each thread
-  std::vector<traceEvent> curEvent;            // current event for each thread
-  std::vector<Xregs *> funcArgs;               // record function arguments for each core
-  ThreadID threadId;
-  ProcID procId;
+  std::vector<traceHandler*> handlers;          // trace handler for each thread
+  metaLogger* mlogger;                          // record metadata of threads, just for test now
+
+  ThreadID curThread;
+  addr_t CLONE_END;                             // the return address after ecall 435
+  addr_t pthreadtSATP;                          // the satp for the pthread_t which is followed now
+  addr_t pthreadtAddr;                          // the address of pthread_t which is followed now
 
   enum class EventType {
     UNDEFINED,
@@ -27,18 +25,25 @@ namespace trace_capture {
 
   static EventType eventMap[256]; 
 
+  void newThread(ThreadID threadId) {
+    traceHandler* newHandler = new traceHandler(threadId, "/home/spike/Desktop/trace");
+
+    assert(newHandler != nullptr);
+
+    handlers.push_back(newHandler);
+  }
+
   void init() {
-    threadId = 0;
+    traceRegs* newRegs = new traceRegs();
+    mlogger = new metaLogger("/home/spike/Desktop/trace");
+    assert(newRegs != nullptr);
+    Args.push_back(newRegs);
+
+    newThread(0); // create handler for kernel
+    newThread(1); // create handler for the first thread
+    curThread = 1;
+    threadCnt = 1;
     procId = 0;
-    char eventDir[] = "/home/spike/Desktop/trace";
-    traceLogger* newLogger = new traceLogger(threadId, eventDir);
-    Xregs* newRegs = new Xregs();
-
-    assert(newLogger != nullptr && newRegs != nullptr);
-
-    loggers.push_back(newLogger);
-    curEvent.push_back(traceEvent{traceEvent::UndefTag});
-    funcArgs.push_back(newRegs);
 
     // map opcode with related event
     memset(eventMap, 0, sizeof(eventMap));
@@ -65,102 +70,94 @@ namespace trace_capture {
   }
 
   void exit() {
-    while (!loggers.empty()) {
-      traceLogger* now = loggers.back();
+    while (!handlers.empty()) {
+      traceHandler* now = handlers.back();
       delete now;
-      loggers.pop_back();
+      handlers.pop_back();
     }
   }
 
-  void recordArgs(int64_t data, int id) {
-    funcArgs[procId]->update(data, id);
+  bool threadCheck(addr_t pc) {
+    if (curThread == -1)
+      return pc >= KERNEL_ADDR;
+    else
+      return (pc >= KERNEL_ADDR) && (handlers[curThread]->getPrePC() < KERNEL_ADDR);
   }
 
-  int64_t getArgs(int id) {
-    return funcArgs[procId]->get(id);
+  void threadSwitch(int type) {
+    if (type) { // switch to kernel
+      curThread = 0;
+    } else {    // switch to user mode
+      addr_t taskAddr = getSSCRATCH();   // get the value of sscratch in uer mode
+      if (!taskAddr)
+        return;
+      curThread = getIdByTaskStruct(taskAddr);
+      if (curThread == -1) {  // a new thread, or a thread that should not trace
+        curThread = getIdByPthread(getSATP(), getArgs(13));   // when returned from ecall 435, the value of pthread_t will be recoreded in x13.
+        if (curThread != -1) {
+          mapThreadId(getSSCRATCH(), curThread);
+          mlogger->record(curThread, getSATP(), getSSCRATCH());
+        }
+      }
+    }
   }
-
-  #define curEv curEvent[threadId]
 
   void recordComp(uint32_t isIOP, insn_bits_t insn, uint64_t pc) {
-    // if (curEv.tag != Tag::COMPUTE) {
-      if (curEv.tag != Tag::UNDEFINED)
-        loggers[threadId]->record(curEv);
-
-    if (curEv.pc >= KERNEL_ADDR && pc < KERNEL_ADDR)
-      curEv = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1, insn, getArgs(10), getArgs(0)}; // output the return value of ecall, just for tests
-    else
-
-      curEv = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1, insn, getArgs(4), getArgs(0)};
-    // } else {
-    //   curEv.compEvent.iops += isIOP;
-    //   curEv.compEvent.flops += isIOP ^ 1;
-    // }
+    // if (threadCheck(pc))
+    //   threadSwitch(1);
+    // if (curThread < 0)
+    //   return;
+    
+    handlers[curThread]->recordComp(isIOP, insn, pc);
   }
 
   void recordMem(uint64_t vaddr, uint64_t addr, uint64_t bytes, int type, uint64_t pc, uint64_t val) {
-    // if (curEv.tag != Tag::MEMORY || curEv.memEvent.type != type || curEv.memEvent.addr + curEv.memEvent.bytes != addr) {
-      if (curEv.tag != Tag::UNDEFINED)
-        loggers[threadId]->record(curEv);
-      curEv = traceEvent{traceEvent::MemTag, pc, MemEvent{vaddr, addr, bytes, val, type}, getArgs(4), getArgs(0)};
-    // } else {
-    //   curEv.memEvent.bytes += bytes;
-    // }
+    // if (threadCheck(pc))
+    //   threadSwitch(1);
+    if (curThread < 0)
+      return;
+    
+    handlers[curThread]->recordMem(vaddr, addr, bytes, type, pc, val);
+
+    if (type && vaddr == pthreadtAddr) {
+      uint64_t satp = getSATP();
+      if (satp == pthreadtSATP)
+        updateValueMap(satp, val, vaddr);
+    }
   }
 
   void recordEnd() {
-    if (curEv.tag != Tag::UNDEFINED)
-      loggers[threadId]->record(curEv);
-    loggers[threadId]->record(traceEvent{traceEvent::EndTag});
+    for (int i = 0; i <= threadCnt; i++)
+      handlers[i]->recordEnd();
   }
 
-  void recordAPI(uint64_t pc) {    
-    ThreadAPI type = threadAPI[pc];
-    PThread api;
-    api.addr = pc;
-    api.type = type;
-
-    switch(type) {
-      case ThreadAPI::PTHREAD_CREATE:
-        api.targetAddr = getArgs(10);
-        api.targetId = ++threadCnt;
-        threadMap[api.targetAddr] = api.targetAddr;
-        break;
-      case ThreadAPI::PTHREAD_MUTEX_LOCK:
-      case ThreadAPI::PTHREAD_MUTEX_UNLOCK:
-      case ThreadAPI::PTHREAD_SPIN_LOCK:
-      case ThreadAPI::PTHREAD_SPIN_UNLOCK:
-      case ThreadAPI::PTHREAD_BARRIER_WAIT:
-        api.targetAddr = getArgs(10);
-        break;
-      case ThreadAPI::PTHREAD_JOIN:
-      case ThreadAPI::PTHREAD_BARRIER_INIT:
-        api.targetId = getArgs(10);
-        break;
-      default:
-        api.type = ThreadAPI::UNDEFINED;
-        break;
-    }
-
-    if (api.type == ThreadAPI::UNDEFINED)
+  void recordAPI(uint64_t pc) {
+    if (curThread < 0)
       return;
-
-    if (curEv.tag != Tag::UNDEFINED)
-      loggers[threadId]->record(curEv);
-    curEv = traceEvent(traceEvent::PThreadTag, pc, api, getArgs(4));
+    
+    if (threadAPI[pc] == ThreadAPI::PTHREAD_CREATE) {
+      newThread(++threadCnt);
+      pthreadtSATP = getSATP();
+      pthreadtAddr = getArgs(10);
+      updateAddrMap(pthreadtSATP, pthreadtAddr, threadCnt);
+    }
+    handlers[curThread]->recordAPI(pc);
   }
 
   void recordEcall(uint64_t pc) {
-    if (curEv.tag != Tag::UNDEFINED)
-      loggers[threadId]->record(curEv);
-    curEv = traceEvent(traceEvent::EcallTag, pc, getArgs(17), getArgs(4));
+    if (curThread < 0)
+      return;
+    handlers[curThread]->recordEcall(pc);
+
+    // threadSwitch(1);                      // after record ecall switch to kernel
   }
 
   void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc) {
-    // auto it = threadAPI.find(pc);
-    // if (it != threadAPI.end()) {  // capture pthread API, maybe moved to other place soon.
-    //   recordAPI(it->second, pc);
-    // }
+
+    if (curThread && threadCheck(pc))
+      threadSwitch(1);
+    if (curThread < 0)
+      return;
 
     if (insn_length(opc) == 4) {
       EventType ev = eventMap[opc & 0x7f];
@@ -173,10 +170,12 @@ namespace trace_capture {
       else if (ev != EventType::MEMORY) {
         recordComp(1, insn, pc);    // just for test
       }
-
     } else {
       if ((opc & 0x3) == 0x1 || opc == MATCH_C_ADD || opc == MATCH_C_JALR || opc == MATCH_C_JR || opc == MATCH_C_MV || opc == MATCH_C_SLLI)
         recordComp(1, insn, pc);
     }
+
+    if (opc == MATCH_MRET || opc == MATCH_SRET)
+      threadSwitch(0);                              // return to user mode from kernel
   }
 }

@@ -13,6 +13,7 @@ namespace trace_capture {
   // static const unsigned int START = 0x10450;    // the entrance address of new process.
   extern uint64_t START; // the entrance address
   extern uint64_t MAIN;  // the main function
+  extern uint64_t CLONE_END;  // the return address after ecall 435
   static const unsigned int CSR_TRACE  = 0x800; // id of the csr used by start trace generation.
   static const unsigned int CSR_THREAD = 0x801; // id of the csr used by record addresses of pthreadAPIs.
 
@@ -25,7 +26,12 @@ namespace trace_capture {
   extern void recordAPI(uint64_t pc);
   extern void recordEcall(uint64_t pc);
   extern void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc);
+
   extern void recordArgs(int64_t data, int id);
+  extern void recordSATP(int64_t data);
+  extern void recordSSCRATCH(int64_t data);
+
+  extern void mapThreadId(addr_t taskAddr, int16_t threadId);
   extern bool isThreadAPI(uint64_t pc);
 
   void recordEvent(processor_t* proc, uint64_t opc, insn_bits_t insn, uint64_t pc);
@@ -51,9 +57,10 @@ protected:
   virtual bool unlogged_write(const reg_t val) noexcept override {
     if (val) {
       this->val |= val;
-      if (this->val == 3)
-      // if (this->val)
+      if (this->val == 3) {
         this->proc->capture = true;
+        trace_capture::mapThreadId(this->proc->get_state()->csrmap[CSR_SSCRATCH]->read(), 1);   // map the main thread to ID: 1
+      }
     } else {
       this->val = 0;
       this->proc->capture = false;
@@ -81,6 +88,8 @@ protected:
   virtual bool unlogged_write(const reg_t val) noexcept override {
     this->val = val;
     if (cnt == 0)
+    //   trace_capture::CLONE_END = val;
+    // else if (cnt == 1)
       trace_capture::START = val;
     else if (cnt == 1)
       trace_capture::MAIN = val;

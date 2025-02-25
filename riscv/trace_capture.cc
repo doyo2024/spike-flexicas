@@ -7,10 +7,12 @@ namespace trace_capture {
   void recordEvent(processor_t* proc, uint64_t opc, insn_bits_t insn, uint64_t pc) {
     state_t* state = proc->get_state();
 
-    recordArgs(state->XPR[4], 4);       // record register tp, just for test
-    // recordArgs(state->satp->read(), 0); // record CSR satp, just for test right now
-    recordArgs(state->csrmap[CSR_SSCRATCH]->read(), 0);       // record CSR sscratch, just for test
-    recordArgs(state->XPR[10], 10);     // just for test 
+    //TODO: change the time for registers record, this may influence the effect
+    recordArgs(state->XPR[4], 4);                              // record register tp, just for test
+    recordSATP(state->satp->read());                           // record CSR satp
+    recordSSCRATCH(state->csrmap[CSR_SSCRATCH]->read());       // record CSR sscratch
+    recordArgs(state->XPR[10], 10);     // just for test
+    recordArgs(state->XPR[13], 13);
 
     if (isThreadAPI(pc)) {
       for (int i = 10; i <= 17; i++) {
@@ -22,8 +24,7 @@ namespace trace_capture {
     //   recordArgs(state->XPR[4], 4);       // record register tp, just for test
     //   recordArgs(state->XPR[17], 17);     // record a7, system call number.
     //   recordEcall(pc);
-    } else {
-      compTypeCheck(opc, insn, pc);
     }
+    compTypeCheck(opc, insn, pc);
   }
 }

@@ -24,7 +24,7 @@ public:
     valid = true;
     thread = newThread;
     req = newReq;
-    eventId = trace_capture::curEventId[newThread];
+    // eventId = trace_capture::curEventId[newThread];
   }
 
   bool check(ThreadID newThread, ReqType newReq) {  // return ture if dependency exists

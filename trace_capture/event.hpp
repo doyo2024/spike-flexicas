@@ -40,8 +40,8 @@ struct EndMark {
 
 struct PThread {
   uint64_t addr;  // virtual address (pc) of the api
-  trace_capture::ThreadAPI type;
-  uint64_t targetId;  // currently record the pthread_t, maybe changed soon
+  ThreadAPI type;
+  ThreadID targetId;  // currently record the pthread_t, maybe changed soon
   // ThreadID targetId;
   uint64_t targetAddr;
 };
@@ -79,7 +79,7 @@ struct traceEvent {
   static constexpr auto EcallTag = EcallTagType{};
 
   traceEvent(UndefTagType) noexcept
-    : tag{Tag::UNDEFINED}
+    : tag{Tag::UNDEFINED}, pc{0}
   {}
 
   traceEvent(CompTagType, uint64_t pc, uint32_t iops, uint32_t flops, insn_bits_t insn, uint64_t tp, uint64_t satp) noexcept

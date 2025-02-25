@@ -7,10 +7,10 @@
 
 #include <cstdint>
 #include <vector>
+#include <map>
 #include <unordered_map>
 
-namespace trace_capture {
-  enum class ThreadAPI : uint8_t {
+enum class ThreadAPI : uint8_t {
     UNDEFINED,
     PTHREAD_CREATE,
     PTHREAD_JOIN,
@@ -25,36 +25,40 @@ namespace trace_capture {
     PTHREAD_COND_SIGNAL
   };
 
-  const char* APItoString(ThreadAPI type) {
-    switch(type) {
-      case ThreadAPI::UNDEFINED:
-        return "UNDEFINED";
-      case ThreadAPI::PTHREAD_CREATE:
-        return "PTHREAD_CREATE";
-      case ThreadAPI::PTHREAD_JOIN:
-        return "PTHREAD_JOIN";
-      case ThreadAPI::PTHREAD_MUTEX_LOCK:
-        return "PTHREAD_MUTEX_LOCK";
-      case ThreadAPI::PTHREAD_MUTEX_UNLOCK:
-        return "PTHREAD_MUTEX_UNLOCK";
-      case ThreadAPI::PTHREAD_SPIN_LOCK:
-        return "PTHREAD_SPIN_LOCK";
-      case ThreadAPI::PTHREAD_SPIN_UNLOCK:
-        return "PTHREAD_SPIN_UNLOCK";
-      case ThreadAPI::PTHREAD_BARRIER_INIT:
-        return "PTHREAD_BARRIER_INIT";
-      case ThreadAPI::PTHREAD_BARRIER_WAIT:
-        return "PTHREAD_BARRIER_WAIT";
-      case ThreadAPI::PTHREAD_BARRIER_DESTROY:
-        return "PTHREAD_BARRIER_DESTROY";
-      case ThreadAPI::PTHREAD_COND_WAIT:
-        return "PTHREAD_COND_WAIT";
-      case ThreadAPI::PTHREAD_COND_SIGNAL:
-        return "PTHREAD_COND_SIGNAL"; 
-      default:
-        return "UNKNOWN API";
-    }
+const char* APItoString(ThreadAPI type) {
+  switch(type) {
+    case ThreadAPI::UNDEFINED:
+      return "UNDEFINED";
+    case ThreadAPI::PTHREAD_CREATE:
+      return "PTHREAD_CREATE";
+    case ThreadAPI::PTHREAD_JOIN:
+      return "PTHREAD_JOIN";
+    case ThreadAPI::PTHREAD_MUTEX_LOCK:
+      return "PTHREAD_MUTEX_LOCK";
+    case ThreadAPI::PTHREAD_MUTEX_UNLOCK:
+      return "PTHREAD_MUTEX_UNLOCK";
+    case ThreadAPI::PTHREAD_SPIN_LOCK:
+      return "PTHREAD_SPIN_LOCK";
+    case ThreadAPI::PTHREAD_SPIN_UNLOCK:
+      return "PTHREAD_SPIN_UNLOCK";
+    case ThreadAPI::PTHREAD_BARRIER_INIT:
+      return "PTHREAD_BARRIER_INIT";
+    case ThreadAPI::PTHREAD_BARRIER_WAIT:
+      return "PTHREAD_BARRIER_WAIT";
+    case ThreadAPI::PTHREAD_BARRIER_DESTROY:
+      return "PTHREAD_BARRIER_DESTROY";
+    case ThreadAPI::PTHREAD_COND_WAIT:
+      return "PTHREAD_COND_WAIT";
+    case ThreadAPI::PTHREAD_COND_SIGNAL:
+      return "PTHREAD_COND_SIGNAL"; 
+    default:
+      return "UNKNOWN API";
   }
+}
+
+std::vector<CurEventID> curEventId;
+
+namespace trace_capture {
 
   std::unordered_map<uint64_t, ThreadAPI> threadAPI;     // address for important threadAPI
   ThreadAPI now = ThreadAPI::UNDEFINED;
@@ -68,15 +72,41 @@ namespace trace_capture {
     threadAPI.clear();
   }
 
-  bool isThreadAPI(uint64_t pc) {
+  bool isThreadAPI(addr_t pc) {
     auto it = threadAPI.find(pc);
     return (it != threadAPI.end());
   }
 
-  std::unordered_map<uint64_t, ThreadID> threadMap;   // map virtual address with threadID
-  uint16_t threadCnt = 0;
+  ThreadID threadCnt;
+  std::unordered_map<addr_t, ThreadID> threadMap;   // map virtual address of task struct to the threadID allocated by tracer
 
-  std::vector<CurEventID> curEventId;
+  void mapThreadId(addr_t taskAddr, ThreadID threadId) {
+    threadMap[taskAddr] = threadId;
+  }
+
+  ThreadID getIdByTaskStruct(addr_t taskAddr) {
+    auto it = threadMap.find(taskAddr);
+    return (it == threadMap.end()) ? -1 : it->second;
+  }
+
+  #define pthreadInfo std::pair<uint64_t, uint64_t>
+
+  // TODO: can't use pair as key of unordered_map, map may influnce the effect.
+  std::map<pthreadInfo, ThreadID> addrToID;  // map the virtual address of a pthread_t to the threadID allocated by tracer
+  std::map<pthreadInfo, ThreadID> valToID;   // map the value of a pthread_t to the threadID allocated by tracer
+
+  void updateAddrMap(uint64_t satp, uint64_t addr, ThreadID threadId) {
+    addrToID[std::make_pair(satp, addr)] = threadId;
+  }
+
+  void updateValueMap(uint64_t satp, uint64_t value, addr_t addr) {
+    valToID[std::make_pair(satp, value)] = addrToID[std::make_pair(satp, addr)];
+  }
+
+  ThreadID getIdByPthread(uint64_t satp, uint64_t value) {
+    auto it = valToID.find(std::make_pair(satp, value));
+    return (it == valToID.end()) ? -1 : it->second;
+  }
 }
 
 #endif

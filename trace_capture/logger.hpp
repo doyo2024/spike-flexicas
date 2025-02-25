@@ -18,8 +18,11 @@
 class traceLogger {
 public:
   traceLogger(ThreadID threadId, const std::string& eventDir, size_t BSize = 1024) :
-    threadId(threadId), filename(eventDir + "/trace-" + std::to_string(threadId) + ".out"),
-    eventId(0), BufferSize(BSize) {
+    threadId(threadId), eventId(0), BufferSize(BSize) {
+      if (threadId == 0) 
+        filename = eventDir + "/kernel.out";
+      else
+        filename = eventDir + "/trace-" + std::to_string(threadId) + ".out";
       traceFile.open(filename.c_str(), std::ios::out | std::ios::trunc);
       if (!traceFile.is_open()) {
         std::cerr << "Error opening file:" << filename << std::endl;
@@ -56,22 +59,22 @@ private:
 
   void APIinfo(PThread pThread) {
     switch(pThread.type) {
-      case trace_capture::ThreadAPI::PTHREAD_CREATE:
-      case trace_capture::ThreadAPI::PTHREAD_MUTEX_LOCK:
-      case trace_capture::ThreadAPI::PTHREAD_MUTEX_UNLOCK:
-      case trace_capture::ThreadAPI::PTHREAD_SPIN_LOCK:
-      case trace_capture::ThreadAPI::PTHREAD_SPIN_UNLOCK:
+      case ThreadAPI::PTHREAD_CREATE:
+      case ThreadAPI::PTHREAD_MUTEX_LOCK:
+      case ThreadAPI::PTHREAD_MUTEX_UNLOCK:
+      case ThreadAPI::PTHREAD_SPIN_LOCK:
+      case ThreadAPI::PTHREAD_SPIN_UNLOCK:
         traceFile << " " << pThread.targetAddr << std::endl;
         break;
-      case trace_capture::ThreadAPI::PTHREAD_JOIN:
+      case ThreadAPI::PTHREAD_JOIN:
         traceFile << " " << pThread.targetId << std::endl;
         break;
-      case trace_capture::ThreadAPI::PTHREAD_BARRIER_INIT:
-      case trace_capture::ThreadAPI::PTHREAD_BARRIER_WAIT:
-      case trace_capture::ThreadAPI::PTHREAD_BARRIER_DESTROY:
-      case trace_capture::ThreadAPI::PTHREAD_COND_WAIT:
-      case trace_capture::ThreadAPI::PTHREAD_COND_SIGNAL:
-      case trace_capture::ThreadAPI::UNDEFINED:
+      case ThreadAPI::PTHREAD_BARRIER_INIT:
+      case ThreadAPI::PTHREAD_BARRIER_WAIT:
+      case ThreadAPI::PTHREAD_BARRIER_DESTROY:
+      case ThreadAPI::PTHREAD_COND_WAIT:
+      case ThreadAPI::PTHREAD_COND_SIGNAL:
+      case ThreadAPI::UNDEFINED:
       default:
         traceFile << std::endl;
         break;
@@ -117,7 +120,7 @@ private:
           traceFile << ev.endMark.ed << std::endl;
           break;
         case Tag::PTHREAD:
-          traceFile << "2 " << output(16, ev.pThread.addr) << " " << output(16, ev.tp)  << " " << trace_capture::APItoString(ev.pThread.type);
+          traceFile << "2 " << output(16, ev.pThread.addr) << " " << std::dec << ev.pThread.targetId << " " << output(16, ev.tp)  << " " << APItoString(ev.pThread.type);
           APIinfo(ev.pThread);
           break;
         case Tag::ECALL:
@@ -129,6 +132,33 @@ private:
       }
     }
   }
+};
+
+class metaLogger {
+  /**
+   * record useful metadata, just for test now
+   */
+public:
+  metaLogger(const std::string& eventDir) :
+    filename(eventDir + "/metadata.out") {
+      traceFile.open(filename.c_str(), std::ios::out | std::ios::trunc);
+      if (!traceFile.is_open()) {
+        std::cerr << "Error opening file:" << filename << std::endl;
+        assert(0); 
+      }
+    }
+  
+  ~metaLogger() {
+    traceFile.close();
+  }
+
+  void record(ThreadID threadId, uint64_t satp, uint64_t sscratch){
+    traceFile << std::dec << threadId << " " << output(16, satp) << " " << output(16, sscratch) << std::endl;
+  }
+
+private:
+  std::string filename;
+  std::ofstream traceFile;
 };
 
 #endif
