@@ -3,6 +3,8 @@
 
 #include <cstdint>
 
+/********** common useful types **********/
+
 typedef uint64_t insn_bits_t;
 typedef uint64_t addr_t;
 
@@ -10,6 +12,18 @@ typedef uint8_t ProcID;
 typedef int16_t ThreadID;
 typedef uint32_t CurEventID;
 typedef uint64_t EventID;
+
+/********** for Communication Events **********/
+
+typedef std::pair<ThreadID, EventID> CommInfo;
+typedef std::vector<CommInfo> CommList; // buffer for communication info
+
+/********** for Shadow Memory **********/
+
+#define SMbits 12
+const addr_t SMmask = (1 << SMbits) - 1;
+
+/********** for instruction decode **********/
 
 #define insn_length(x) \
   (((x) & 0x03) < 0x03 ? 2 : \
@@ -30,9 +44,13 @@ typedef uint64_t EventID;
 #define MATCH_MRET 0x30200073
 #define MATCH_SRET 0x10200073
 
+/********** for user mode and kernel mode **********/
+
 // const addr_t KERNEL_ADDR = 0x7fff00000000;
 // const addr_t MACHINE_ADDR = 0x80000000;
-const addr_t KERNEL_ADDR = 0x80000000;
+const addr_t KERNEL_ADDR = 0x80000000;  // used to detect when to swtich to kernel mode, may be deleted soon
+
+/********** for read and write **********/
 
 enum class ReqType: uint8_t {
   REQ_READ,

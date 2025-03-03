@@ -15,10 +15,9 @@ class traceHandler {
 
 public:
   traceHandler (ThreadID threadId, const std::string& eventDir) :
-    threadId(threadId), curEvent(traceEvent{traceEvent::UndefTag})
+    curEvent(traceEvent{traceEvent::UndefTag}), threadId(threadId), eventId(0)
   {
     logger = new traceLogger(threadId, eventDir);
-    // regs = new Xregs();
   }
 
   void recordEv(traceEvent newEvent) {
@@ -41,7 +40,8 @@ public:
     // if (curEv.tag != Tag::COMPUTE) {
       if (curEvent.tag != Tag::UNDEFINED)
         logger->record(curEvent);
-      curEvent = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1, insn, trace_capture::getTP(), trace_capture::getSSCRATCH()};
+      curEvent = traceEvent{traceEvent::CompTag, pc, isIOP, isIOP ^ 1, insn};
+      eventId++;
     // } else {
     //   curEv.compEvent.iops += isIOP;
     //   curEv.compEvent.flops += isIOP ^ 1;
@@ -52,10 +52,18 @@ public:
     // if (curEv.tag != Tag::MEMORY || curEv.memEvent.type != type || curEv.memEvent.addr + curEv.memEvent.bytes != addr) {
       if (curEvent.tag != Tag::UNDEFINED)
         logger->record(curEvent);
-      curEvent = traceEvent{traceEvent::MemTag, pc, MemEvent{vaddr, addr, bytes, val, type}, trace_capture::getTP(), trace_capture::getSSCRATCH()};
+      curEvent = traceEvent{traceEvent::MemTag, pc, MemEvent{vaddr, addr, bytes, val, type}};
+      eventId++;
     // } else {
     //   curEv.memEvent.bytes += bytes;
     // }
+  }
+
+  void recordComm(uint64_t vaddr, uint64_t addr, uint64_t bytes, uint64_t pc, uint64_t val, CommList* comm) {
+    if (curEvent.tag != Tag::UNDEFINED)
+      logger->record(curEvent);
+    curEvent = traceEvent{traceEvent::CommTag, pc, CommEvent{vaddr, addr, bytes, val, comm}};
+    eventId++;
   }
 
   void recordEnd() {
@@ -99,20 +107,26 @@ public:
 
     if (curEvent.tag != Tag::UNDEFINED)
       logger->record(curEvent);
-    curEvent = traceEvent(traceEvent::PThreadTag, pc, api, trace_capture::getTP());
+    curEvent = traceEvent(traceEvent::PThreadTag, pc, api);
+    eventId++;
   }
 
   void recordEcall(uint64_t pc) {
     if (curEvent.tag != Tag::UNDEFINED)
       logger->record(curEvent);
-    curEvent = traceEvent(traceEvent::EcallTag, pc, trace_capture::getArgs(17), trace_capture::getTP());
+    curEvent = traceEvent(traceEvent::EcallTag, pc, trace_capture::getArgs(17));
+    eventId++;
+  }
+
+  EventID getEeventID() {
+    return eventId;
   }
 
 private:
-  traceLogger* logger;          // loggers for each thread
-  traceEvent curEvent;          // current event for each thread
-  // Xregs* regs;                  // record important registers  
-  ThreadID threadId;
+  traceLogger* logger;    // logger for this thread
+  traceEvent curEvent;    // current event for this thread
+  ThreadID threadId;      // ThreadID allocated by tracer fot this thread
+  EventID eventId;        // EventID of this thread
 };
 
 #endif

@@ -1,4 +1,5 @@
 #include "handler.hpp"
+#include "shadowMemory.hpp"
 
 #include <cstring>
 #include <iostream>
@@ -31,6 +32,7 @@ namespace trace_capture {
     assert(newHandler != nullptr);
 
     handlers.push_back(newHandler);
+    // newList();
   }
 
   void init() {
@@ -103,21 +105,21 @@ namespace trace_capture {
   }
 
   void recordComp(uint32_t isIOP, insn_bits_t insn, uint64_t pc) {
-    // if (threadCheck(pc))
-    //   threadSwitch(1);
-    // if (curThread < 0)
-    //   return;
-    
+    // recordComp() must be called in compTypeCheck(), so no need to check curThread here.
     handlers[curThread]->recordComp(isIOP, insn, pc);
   }
 
   void recordMem(uint64_t vaddr, uint64_t addr, uint64_t bytes, int type, uint64_t pc, uint64_t val) {
-    // if (threadCheck(pc))
-    //   threadSwitch(1);
     if (curThread < 0)
       return;
     
-    handlers[curThread]->recordMem(vaddr, addr, bytes, type, pc, val);
+    CommList* list = new CommList;
+    if (walk(vaddr, curThread, handlers[curThread]->getEeventID() + 1, bytes, ReqType(type), list)) {
+      handlers[curThread]->recordComm(vaddr, addr, bytes, pc, val, list);
+    } else {
+      delete list;
+      handlers[curThread]->recordMem(vaddr, addr, bytes, type, pc, val);
+    }
 
     if (type && vaddr == pthreadtAddr) {
       uint64_t satp = getSATP();
@@ -148,8 +150,6 @@ namespace trace_capture {
     if (curThread < 0)
       return;
     handlers[curThread]->recordEcall(pc);
-
-    // threadSwitch(1);                      // after record ecall switch to kernel
   }
 
   void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc) {

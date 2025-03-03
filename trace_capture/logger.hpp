@@ -18,7 +18,7 @@
 class traceLogger {
 public:
   traceLogger(ThreadID threadId, const std::string& eventDir, size_t BSize = 1024) :
-    threadId(threadId), eventId(0), BufferSize(BSize) {
+    threadId(threadId), BufferSize(BSize) {
       if (threadId == 0) 
         filename = eventDir + "/kernel.out";
       else
@@ -35,7 +35,6 @@ public:
   }
 
   void record(traceEvent newEvent) {
-    ++eventId;
     buffer.push(newEvent);
     if (buffer.size() == BufferSize || newEvent.tag == Tag::END_OF_ENENTS)
       flush();
@@ -49,7 +48,6 @@ public:
 
 private:
   ThreadID threadId;
-  EventID  eventId;
 
   std::queue<traceEvent> buffer;
   size_t BufferSize;
@@ -85,46 +83,31 @@ private:
     while (!buffer.empty()) {
       traceEvent ev = buffer.front();
       buffer.pop();
-      // if (ev.pc >= KERNEL_ADDR) {
-      //   traceFile << "*";
-      //   if (buffer.front().pc < KERNEL_ADDR) {
-      //     traceFile << std::endl;
-      //   }
-      //   continue;
-      // }
-
-      // if (ev.pc >= MACHINE_ADDR) {
-      //   traceFile << "+";
-      //   if (buffer.front().pc < MACHINE_ADDR) {
-      //     traceFile << std::endl;
-      //   }
-      //   continue;
-      // }
-
-      // if (ev.tp == 0xa5760) {
-      //   traceFile << "#";
-      //   if (buffer.front().tp != 0xa5760) {
-      //     traceFile << std::endl;
-      //   }
-      //   continue;
-      // } // ignore the trace of the start script
 
       switch (ev.tag) {
         case Tag::COMPUTE: 
-          traceFile << "0 " << output(16, ev.pc) << " " << output(16, ev.tp) << " " << output(16, ev.satp) << " " << ev.compEvent.iops << " " << ev.compEvent.flops << " " << std::setw(8) << std::setfill('0') << ev.insn << std::endl;
+          traceFile << "0 " << output(16, ev.pc) << " " << ev.compEvent.iops << " " << ev.compEvent.flops << " " << std::setw(8) << std::setfill('0') << ev.insn << std::endl;
           break;
         case Tag::MEMORY:
-          traceFile << "1 " << output(16, ev.pc) << " " << output(16, ev.tp) << " " << output(16, ev.satp) << " " << ev.memEvent.type << " " << output(16, ev.memEvent.vaddr) << " " << ev.memEvent.bytes << " " << output(16, ev.memEvent.val) << std::endl;
+          traceFile << "1 " << output(16, ev.pc) << " " << ev.memEvent.type << " " << output(16, ev.memEvent.vaddr) << " " << ev.memEvent.bytes << " " << output(16, ev.memEvent.val) << std::endl;
+          break;
+        case Tag::COMMUNICATION:
+          traceFile << "2 " << output(16, ev.pc) << " " << output(16, ev.commEvent.vaddr) << " " << ev.commEvent.bytes << " " << output(16, ev.commEvent.val) << ": ";
+          for (auto it = ev.commEvent.comm->begin(); it != ev.commEvent.comm->end(); it++) {
+            traceFile << std::dec << it->first << " "  << it->second << "; ";
+          }
+          traceFile << std::endl;
+          delete ev.commEvent.comm;
           break;
         case Tag::END_OF_ENENTS:
           traceFile << ev.endMark.ed << std::endl;
           break;
         case Tag::PTHREAD:
-          traceFile << "2 " << output(16, ev.pThread.addr) << " " << std::dec << ev.pThread.targetId << " " << output(16, ev.tp)  << " " << APItoString(ev.pThread.type);
+          traceFile << "3 " << output(16, ev.pThread.addr) << " " << std::dec << ev.pThread.targetId << " " << APItoString(ev.pThread.type);
           APIinfo(ev.pThread);
           break;
         case Tag::ECALL:
-          traceFile << "3 " << output(16, ev.pc) << " " << output(16, ev.tp) << " ECALL " << std::dec << ev.ecall.sysId << std::endl;
+          traceFile << "4 " << output(16, ev.pc) << " ECALL " << std::dec << ev.ecall.sysId << std::endl;
           break;
         default:
           std::cerr << "Unexpected Thread Event Type!" << std::endl;
