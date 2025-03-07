@@ -14,8 +14,8 @@ class traceHandler {
  */
 
 public:
-  traceHandler (ThreadID threadId, const std::string& eventDir) :
-    curEvent(traceEvent{traceEvent::UndefTag}), threadId(threadId), eventId(0)
+  traceHandler (traceHandler* kernel, ThreadID threadId, const std::string& eventDir) :
+    kernel(kernel), curEvent(traceEvent{traceEvent::UndefTag}), threadId(threadId), eventId(0)
   {
     logger = new traceLogger(threadId, eventDir);
   }
@@ -75,7 +75,6 @@ public:
   void recordAPI(uint64_t pc) {    
     ThreadAPI type = trace_capture::threadAPI[pc];
     PThread api;
-    api.addr = pc;
     api.type = type;
 
     switch(type) {
@@ -89,13 +88,15 @@ public:
       case ThreadAPI::PTHREAD_SPIN_LOCK:
       case ThreadAPI::PTHREAD_SPIN_UNLOCK:
       case ThreadAPI::PTHREAD_BARRIER_WAIT:
+      case ThreadAPI::PTHREAD_BARRIER_DESTROY:
         api.targetAddr = trace_capture::getArgs(10);
         break;
       case ThreadAPI::PTHREAD_JOIN:
         api.targetId = trace_capture::getIdByPthread(trace_capture::getSATP(), trace_capture::getArgs(10));
         break;
       case ThreadAPI::PTHREAD_BARRIER_INIT:
-        api.targetId = trace_capture::getArgs(10);
+        api.targetAddr = trace_capture::getArgs(10);
+        api.arg = trace_capture::getArgs(12);
         break;
       default:
         api.type = ThreadAPI::UNDEFINED;
@@ -112,9 +113,16 @@ public:
   }
 
   void recordEcall(uint64_t pc) {
+    EventID kernelEv;
+    if (kernel == NULL) {
+      kernelEv = eventId + 2;
+    } else {
+      kernelEv = kernel->getEeventID() + 1;
+    }
+
     if (curEvent.tag != Tag::UNDEFINED)
       logger->record(curEvent);
-    curEvent = traceEvent(traceEvent::EcallTag, pc, trace_capture::getArgs(17));
+    curEvent = traceEvent(traceEvent::EcallTag, pc, trace_capture::getArgs(17), kernelEv);
     eventId++;
   }
 
@@ -123,6 +131,7 @@ public:
   }
 
 private:
+  traceHandler* kernel;   // a pointer to the traceHandler of kernel mode, used for the record of ecall
   traceLogger* logger;    // logger for this thread
   traceEvent curEvent;    // current event for this thread
   ThreadID threadId;      // ThreadID allocated by tracer fot this thread

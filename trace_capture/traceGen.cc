@@ -27,7 +27,11 @@ namespace trace_capture {
   static EventType eventMap[256]; 
 
   void newThread(ThreadID threadId) {
-    traceHandler* newHandler = new traceHandler(threadId, "/home/spike/Desktop/trace");
+    traceHandler* newHandler;
+    if (!threadId)
+      newHandler = new traceHandler(NULL, threadId, traceDir);
+    else
+      newHandler = new traceHandler(handlers[0], threadId, traceDir);
 
     assert(newHandler != nullptr);
 

@@ -36,7 +36,7 @@ public:
 
   void record(traceEvent newEvent) {
     buffer.push(newEvent);
-    if (buffer.size() == BufferSize || newEvent.tag == Tag::END_OF_ENENTS)
+    if (buffer.size() == BufferSize || newEvent.tag == Tag::END_OF_EVENTS)
       flush();
   }
 
@@ -58,18 +58,20 @@ private:
   void APIinfo(PThread pThread) {
     switch(pThread.type) {
       case ThreadAPI::PTHREAD_CREATE:
+      case ThreadAPI::PTHREAD_JOIN:
+        traceFile << " " << std::dec << pThread.targetId << std::endl;
+        break;
       case ThreadAPI::PTHREAD_MUTEX_LOCK:
       case ThreadAPI::PTHREAD_MUTEX_UNLOCK:
       case ThreadAPI::PTHREAD_SPIN_LOCK:
       case ThreadAPI::PTHREAD_SPIN_UNLOCK:
-        traceFile << " " << pThread.targetAddr << std::endl;
-        break;
-      case ThreadAPI::PTHREAD_JOIN:
-        traceFile << " " << pThread.targetId << std::endl;
-        break;
-      case ThreadAPI::PTHREAD_BARRIER_INIT:
       case ThreadAPI::PTHREAD_BARRIER_WAIT:
       case ThreadAPI::PTHREAD_BARRIER_DESTROY:
+        traceFile << " " << output(16, pThread.targetAddr) << std::endl;
+        break;
+      case ThreadAPI::PTHREAD_BARRIER_INIT:
+        traceFile << " " << output(16, pThread.targetAddr) << " " << std::dec << pThread.arg << std::endl;
+        break;
       case ThreadAPI::PTHREAD_COND_WAIT:
       case ThreadAPI::PTHREAD_COND_SIGNAL:
       case ThreadAPI::UNDEFINED:
@@ -99,15 +101,15 @@ private:
           traceFile << std::endl;
           delete ev.commEvent.comm;
           break;
-        case Tag::END_OF_ENENTS:
+        case Tag::END_OF_EVENTS:
           traceFile << ev.endMark.ed << std::endl;
           break;
         case Tag::PTHREAD:
-          traceFile << "3 " << output(16, ev.pThread.addr) << " " << std::dec << ev.pThread.targetId << " " << APItoString(ev.pThread.type);
+          traceFile << "3 " << output(16, ev.pc) << " " << APItoString(ev.pThread.type);
           APIinfo(ev.pThread);
           break;
         case Tag::ECALL:
-          traceFile << "4 " << output(16, ev.pc) << " ECALL " << std::dec << ev.ecall.sysId << std::endl;
+          traceFile << "4 " << output(16, ev.pc) << " ECALL " << std::dec << ev.ecall.sysId << " " << ev.ecall.kernelEv << std::endl;
           break;
         default:
           std::cerr << "Unexpected Thread Event Type!" << std::endl;

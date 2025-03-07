@@ -13,7 +13,7 @@ enum class Tag : uint8_t {
   COMMUNICATION,  // Communication between different threads, a special memory request.
   PTHREAD,        // Pthread API.
   ECALL,          // ecall
-  END_OF_ENENTS   // The end of the event stream.
+  END_OF_EVENTS   // The end of the event stream.
 };
 
 struct CompEvent {
@@ -43,15 +43,16 @@ struct EndMark {
 };
 
 struct PThread {
-  uint64_t addr;  // virtual address (pc) of the api
+  // uint64_t addr;  // virtual address (pc) of the api
   ThreadAPI type;
-  ThreadID targetId;  // currently record the pthread_t, maybe changed soon
-  // ThreadID targetId;
-  uint64_t targetAddr;
+  ThreadID targetId;  
+  addr_t targetAddr;
+  uint64_t arg;
 };
 
 struct EcallEvent {
-  uint64_t sysId; // system call number
+  uint64_t sysId;   // system call number
+  EventID kernelEv; // the EventID after switch to kernel mode
 };
 
 struct traceEvent {
@@ -71,7 +72,7 @@ struct traceEvent {
   using CompTagType = std::integral_constant<Tag, Tag::COMPUTE>;
   using MemTagType = std::integral_constant<Tag, Tag::MEMORY>;
   using CommTagType = std::integral_constant<Tag, Tag::COMMUNICATION>;
-  using EndTagType = std::integral_constant<Tag, Tag::END_OF_ENENTS>;
+  using EndTagType = std::integral_constant<Tag, Tag::END_OF_EVENTS>;
   using PThreadTagType = std::integral_constant<Tag, Tag::PTHREAD>;
   using EcallTagType = std::integral_constant<Tag, Tag::ECALL>;
 
@@ -87,28 +88,28 @@ struct traceEvent {
     : tag{Tag::UNDEFINED}, pc{0}
   {}
 
-  traceEvent(CompTagType, uint64_t pc, uint32_t iops, uint32_t flops, insn_bits_t insn) noexcept
+  traceEvent(CompTagType, addr_t pc, uint32_t iops, uint32_t flops, insn_bits_t insn) noexcept
     : compEvent{iops, flops}, tag{Tag::COMPUTE}, pc{pc}, insn{insn}
   {}
 
-  traceEvent(MemTagType, uint64_t pc, const MemEvent memEv) noexcept
+  traceEvent(MemTagType, addr_t pc, const MemEvent memEv) noexcept
     : memEvent{memEv}, tag{Tag::MEMORY}, pc{pc}
   {}
 
-  traceEvent(CommTagType, uint64_t pc, const CommEvent commEv) noexcept
+  traceEvent(CommTagType, addr_t pc, const CommEvent commEv) noexcept
     : commEvent{commEv}, tag{Tag::COMMUNICATION}, pc{pc}
   {}
 
   traceEvent(EndTagType) noexcept
-    : endMark{}, tag{Tag::END_OF_ENENTS}
+    : endMark{}, tag{Tag::END_OF_EVENTS}
   {}
 
-  traceEvent(PThreadTagType, uint64_t pc, const PThread api) noexcept
+  traceEvent(PThreadTagType, addr_t pc, const PThread api) noexcept
     : pThread{api}, tag{Tag::PTHREAD}
   {}
 
-  traceEvent(EcallTagType, uint64_t pc, uint64_t sysID) noexcept
-    : ecall{sysID}, tag{Tag::ECALL}, pc{pc}
+  traceEvent(EcallTagType, addr_t pc, uint64_t sysID, EventID kernelEv) noexcept
+    : ecall{sysID, kernelEv}, tag{Tag::ECALL}, pc{pc}
   {}
 };
 

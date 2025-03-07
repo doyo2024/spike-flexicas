@@ -3,6 +3,10 @@
 
 #include <cstdint>
 
+/********** file **********/
+
+const std::string traceDir = "/home/spike/Desktop/trace"; // directory for trace storage
+
 /********** common useful types **********/
 
 typedef uint64_t insn_bits_t;
