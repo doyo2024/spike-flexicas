@@ -92,11 +92,14 @@ namespace trace_capture {
 
   void threadSwitch(int type) {
     if (type) { // switch to kernel
+      if (curThread > 0)
+        handlers[curThread]->recordToKernel();
       curThread = 0;
     } else {    // switch to user mode
       addr_t taskAddr = getSSCRATCH();   // get the value of sscratch in uer mode
       if (!taskAddr)
         return;
+      handlers[curThread]->recordToUser();
       curThread = getIdByTaskStruct(taskAddr);
       if (curThread == -1) {  // a new thread, or a thread that should not trace
         curThread = getIdByPthread(getSATP(), getArgs(13));   // when returned from ecall 435, the value of pthread_t will be recoreded in x13.
@@ -150,11 +153,11 @@ namespace trace_capture {
     handlers[curThread]->recordAPI(pc);
   }
 
-  void recordEcall(uint64_t pc) {
-    if (curThread < 0)
-      return;
-    handlers[curThread]->recordEcall(pc);
-  }
+  // void recordEcall(uint64_t pc) {
+  //   if (curThread < 0)
+  //     return;
+  //   handlers[curThread]->recordEcall(pc);
+  // }
 
   void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc) {
 

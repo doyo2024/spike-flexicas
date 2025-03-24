@@ -65,6 +65,20 @@ namespace trace_capture {
   int64_t getSSCRATCH() {
     return Args[procId]->get(33);
   }
+
+  addr_t physicalPC;                            // the physical address of pc
+  
+  void recordPC(addr_t paddr) {
+    physicalPC = paddr;
+  }
+
+  void updatePC(addr_t offset) {
+    physicalPC += offset;
+  }
+
+  addr_t getPC() {
+    return physicalPC;
+  }
 }
 
 #endif

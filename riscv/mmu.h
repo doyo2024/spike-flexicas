@@ -359,6 +359,7 @@ public:
     int length = insn_length(insn);
 
     uint64_t paddr = addr + tlb_entry.target_offset;
+    trace_capture::recordPC(paddr);
     if(is_memory(paddr)) flexicas::read(paddr, core, true); // normally more than one instruction is readed per refill
 
     if (likely(length == 4)) {
@@ -389,6 +390,7 @@ public:
     if (likely(entry->tag == addr)) {
       auto tlb_entry = translate_insn_addr(addr); // must have hit in software tlb
       uint64_t paddr = addr + tlb_entry.target_offset;
+      trace_capture::recordPC(paddr);
       if(is_memory(paddr)) flexicas::read(paddr, core, true);
       return entry;
     }

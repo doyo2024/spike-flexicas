@@ -24,7 +24,7 @@ namespace trace_capture {
   extern void recordMem(uint64_t vaddr, uint64_t addr, uint64_t bytes, int type, uint64_t pc, uint64_t val);
   extern void recordEnd();
   extern void recordAPI(uint64_t pc);
-  extern void recordEcall(uint64_t pc);
+  // extern void recordEcall(uint64_t pc);
   extern void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc);
 
   extern void recordArgs(int64_t data, int id);
@@ -33,6 +33,8 @@ namespace trace_capture {
 
   extern void mapThreadId(addr_t taskAddr, int16_t threadId);
   extern bool isThreadAPI(uint64_t pc);
+
+  extern void recordPC(uint64_t paddr);  // record the physical address of pc
 
   void recordEvent(processor_t* proc, uint64_t opc, insn_bits_t insn, uint64_t pc);
 }
@@ -79,7 +81,7 @@ private:
 class thread_csr_t: public csr_t {
 public:
   thread_csr_t(processor_t* const proc, const reg_t addr, const reg_t init)
-   : csr_t(proc, addr), val(init), cnt(0) {}
+   : csr_t(proc, addr), cnt(0), val(init) {}
 
   virtual reg_t read() const noexcept override {
     return val;

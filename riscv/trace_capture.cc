@@ -4,6 +4,12 @@ namespace trace_capture {
   uint64_t START; // the entrance address
   uint64_t MAIN;  // the main function
 
+  // uint64_t ppc;   // the physical address of pc
+
+  // void recordPC(uint64_t paddr) {
+  //   ppc = paddr;
+  // }
+
   void recordEvent(processor_t* proc, uint64_t opc, insn_bits_t insn, uint64_t pc) {
     state_t* state = proc->get_state();
 

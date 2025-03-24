@@ -165,10 +165,11 @@ static inline reg_t execute_insn_fast(processor_t* p, reg_t pc, insn_fetch_t fet
   // if (pc == trace_capture::MAIN) {
     p->get_state()->csrmap[trace_capture::CSR_TRACE]->write(2);
   } else if (p->capture && fetch.insn.bits() == 0x73) {
-    state_t* state = p->get_state();
-    trace_capture::recordArgs(state->XPR[4], 4);       // record register tp, just for test
-    trace_capture::recordArgs(state->XPR[17], 17);     // record a7, system call number.
-    trace_capture::recordEcall(pc);
+    // state_t* state = p->get_state();
+    // trace_capture::recordArgs(state->XPR[4], 4);       // record register tp, just for test
+    // trace_capture::recordArgs(state->XPR[17], 17);     // record a7, system call number.
+    // trace_capture::recordEcall(pc);
+    trace_capture::recordEvent(p, MATCH_ECALL, fetch.insn.bits(), pc);
   }
   return fetch.func(p, fetch.insn, pc);
 }
