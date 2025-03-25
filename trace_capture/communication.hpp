@@ -2,7 +2,7 @@
 #define TC_COMMMUNICATION_HPP
 
 #include <vector>
-#include "encoding.hpp"
+#include "types.hpp"
 
 namespace trace_capture {
   // std::vector<CommList *> commLists;      // buffer for each thread

@@ -3,7 +3,7 @@
 
 #include "logger.hpp"
 #include "event.hpp"
-#include "encoding.hpp"
+#include "types.hpp"
 #include "thread.hpp"
 #include "processor.hpp"
 
@@ -20,8 +20,9 @@ public:
     logger = new traceLogger(threadId, eventDir);
   }
 
-  void recordEv(traceEvent newEvent) {
-    logger->record(newEvent);
+  void clear() {
+    logger->join();
+    delete logger;
   }
 
   addr_t getPrePC() {
@@ -29,30 +30,21 @@ public:
   }
 
   void recordComp(uint32_t isIOP, insn_bits_t insn, uint64_t pc) {
-    // if (curEv.tag != Tag::COMPUTE) {
-      if (curEvent.tag != Tag::UNDEFINED)
-        logger->record(curEvent);
-      addr_t offset = pc - curEvent.pc;
-      curEvent = traceEvent{traceEvent::CompTag, pc, trace_capture::getPC(), isIOP, isIOP ^ 1, insn};
-      trace_capture::updatePC(offset);
-      eventId++;
-    // } else {
-    //   curEv.compEvent.iops += isIOP;
-    //   curEv.compEvent.flops += isIOP ^ 1;
-    // }
+    if (curEvent.tag != Tag::UNDEFINED)
+      logger->record(curEvent);
+    addr_t offset = pc - curEvent.pc;
+    curEvent = traceEvent{traceEvent::CompTag, pc, trace_capture::getPC(), isIOP, isIOP ^ 1, insn};
+    // trace_capture::updatePC(offset);
+    eventId++;
   }
 
   void recordMem(uint64_t vaddr, uint64_t addr, uint64_t bytes, int type, uint64_t pc, uint64_t val) {
-    // if (curEv.tag != Tag::MEMORY || curEv.memEvent.type != type || curEv.memEvent.addr + curEv.memEvent.bytes != addr) {
-      if (curEvent.tag != Tag::UNDEFINED)
-        logger->record(curEvent);
-      addr_t offset = pc - curEvent.pc;
-      curEvent = traceEvent{traceEvent::MemTag, pc, trace_capture::getPC(), MemEvent{vaddr, addr, bytes, val, type}};
-      trace_capture::updatePC(offset);
-      eventId++;
-    // } else {
-    //   curEv.memEvent.bytes += bytes;
-    // }
+    if (curEvent.tag != Tag::UNDEFINED)
+      logger->record(curEvent);
+    addr_t offset = pc - curEvent.pc;
+    curEvent = traceEvent{traceEvent::MemTag, pc, trace_capture::getPC(), MemEvent{vaddr, addr, bytes, val, type}};
+    // trace_capture::updatePC(offset);
+    eventId++;
   }
 
   void recordComm(uint64_t vaddr, uint64_t addr, uint64_t bytes, uint64_t pc, uint64_t val, CommList* comm) {
@@ -60,7 +52,7 @@ public:
       logger->record(curEvent);
     addr_t offset = pc - curEvent.pc;
     curEvent = traceEvent{traceEvent::CommTag, pc, trace_capture::getPC(), CommEvent{vaddr, addr, bytes, val, comm}};
-    trace_capture::updatePC(offset);
+    // trace_capture::updatePC(offset);
     eventId++;
   }
 
@@ -79,7 +71,6 @@ public:
       case ThreadAPI::PTHREAD_CREATE:
         api.targetAddr = trace_capture::getArgs(10);
         api.targetId = trace_capture::threadCnt;
-        // Pthreadt[api.targetAddr] = api.targetId;
         break;
       case ThreadAPI::PTHREAD_MUTEX_LOCK:
       case ThreadAPI::PTHREAD_MUTEX_UNLOCK:
@@ -123,20 +114,6 @@ public:
     logger->record(traceEvent{traceEvent::ToUserTag});
     eventId++;
   }
-
-  // void recordEcall(uint64_t pc) {
-  //   EventID kernelEv;
-  //   if (kernel == NULL) {
-  //     kernelEv = eventId + 2;
-  //   } else {
-  //     kernelEv = kernel->getEeventID() + 1;
-  //   }
-
-  //   if (curEvent.tag != Tag::UNDEFINED)
-  //     logger->record(curEvent);
-  //   curEvent = traceEvent(traceEvent::EcallTag, pc, trace_capture::getArgs(17), kernelEv);
-  //   eventId++;
-  // }
 
   EventID getEeventID() {
     return eventId;

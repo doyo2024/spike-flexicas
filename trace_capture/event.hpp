@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "encoding.hpp"   // type: insn_bits_t
+#include "types.hpp"   // type: insn_bits_t
 #include "thread.hpp"
 
 enum class Tag : uint8_t {
@@ -128,5 +128,7 @@ struct traceEvent {
   //   : ecall{sysID, kernelEv}, tag{Tag::ECALL}, pc{pc}
   // {}
 };
+
+typedef std::queue<traceEvent> eventQueue;
 
 #endif

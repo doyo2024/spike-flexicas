@@ -8,7 +8,7 @@
 namespace trace_capture {
 
   std::vector<traceHandler*> handlers;          // trace handler for each thread
-  metaLogger* mlogger;                          // record metadata of threads, just for test now
+  testLogger* tlogger;                          // record metadata of threads, just for test now
 
   ThreadID curThread;
   addr_t CLONE_END;                             // the return address after ecall 435
@@ -24,14 +24,14 @@ namespace trace_capture {
     END
   };
 
-  static EventType eventMap[256]; 
+  int testCnt = 0;
 
   void newThread(ThreadID threadId) {
     traceHandler* newHandler;
     if (!threadId)
-      newHandler = new traceHandler(NULL, threadId, traceDir);
+      newHandler = new traceHandler(NULL, threadId, traceDir + "/test-" + std::to_string(testCnt));
     else
-      newHandler = new traceHandler(handlers[0], threadId, traceDir);
+      newHandler = new traceHandler(handlers[0], threadId, traceDir + "/test-" + std::to_string(testCnt));
 
     assert(newHandler != nullptr);
 
@@ -39,16 +39,14 @@ namespace trace_capture {
     // newList();
   }
 
+  static EventType eventMap[256]; 
+
   void init() {
+    tlogger = new testLogger(traceDir);
     traceRegs* newRegs = new traceRegs();
-    mlogger = new metaLogger("/home/spike/Desktop/trace");
     assert(newRegs != nullptr);
     Args.push_back(newRegs);
 
-    newThread(0); // create handler for kernel
-    newThread(1); // create handler for the first thread
-    curThread = 1;
-    threadCnt = 1;
     procId = 0;
 
     // map opcode with related event
@@ -75,12 +73,38 @@ namespace trace_capture {
     eventMap[0x53] = EventType::COMP_FLOP;
   }
 
-  void exit() {
+  void clear() {
+    tlogger->recordTime(1);
     while (!handlers.empty()) {
       traceHandler* now = handlers.back();
+      now->clear();
       delete now;
       handlers.pop_back();
     }
+
+    clearThreadInfo();
+    clearSM();
+
+    testCnt++;
+  }
+
+  void exit() {
+    for (auto it : Args) {
+      delete it;
+    }
+    delete tlogger;
+  }
+
+  void reset() {
+    newThread(0); // create handler for kernel
+    newThread(1); // create handler for the first thread
+    curThread = 1;
+    threadCnt = 1;
+    for (auto it : Args) {
+      it->reset();
+    }
+
+    tlogger->recordTime(0);
   }
 
   bool threadCheck(addr_t pc) {
@@ -105,7 +129,7 @@ namespace trace_capture {
         curThread = getIdByPthread(getSATP(), getArgs(13));   // when returned from ecall 435, the value of pthread_t will be recoreded in x13.
         if (curThread != -1) {
           mapThreadId(getSSCRATCH(), curThread);
-          mlogger->record(curThread, getSATP(), getSSCRATCH());
+          // tlogger->record(curThread, getSATP(), getSSCRATCH());
         }
       }
     }

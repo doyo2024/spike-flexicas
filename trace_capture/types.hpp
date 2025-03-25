@@ -1,11 +1,28 @@
-#ifndef TC_ENCODING_HPP
-#define TC_ENCODING_HPP
+#ifndef TC_TYPES_HPP
+#define TC_TYPES_HPP
 
+#include <cassert>
 #include <cstdint>
+#include <cstdio>
+#include <fstream>
+#include <iostream>
+#include <iomanip>
+
+#include <chrono>
+#include <filesystem>
+
+#include <string>
+#include <queue>
+#include <vector>
+
+#include <functional>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 /********** file **********/
 
-const std::string traceDir = "/home/spike/Desktop/trace"; // directory for trace storage
+const std::string traceDir = "/newdisk/spike/trace"; // directory for trace storage
 
 /********** common useful types **********/
 

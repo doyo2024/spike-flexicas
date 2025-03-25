@@ -5,52 +5,6 @@
 // #include "encoding.hpp"
 #include "communication.hpp"
 
-// class SMEntry {
-
-// /**
-//  * Shadow Memory Entry
-//  */
-
-// public:
-//   SMEntry() {
-//     reset();
-//   }
-
-//   void reset() {
-//     valid = false;
-//   }
-
-//   void update(ThreadID threadId, EventID eventId, ReqType newReq) {
-//     valid = true;
-//     tid = threadId;
-//     eid = eventId;
-//     req = newReq;
-//     // eventId = trace_capture::curEventId[newThread];
-//   }
-
-//   CommInfo check(ThreadID threadId) {
-//     /**
-//      * Check whether communication exists.
-//      * if yes, return the ThreadID and EventID of last visitor
-//      * else, return 0
-//      */
-//     if (valid && threadId != tid)
-//       return std::make_pair(tid, eid);
-//     return std::make_pair(threadId, 0);
-//   }
-
-//   // CurEventID getEvent() {
-//   //   return eventId;
-//   // }
-
-// private:
-//   // addr_t paddr;     // physical address
-//   bool valid;
-//   ThreadID tid;  // last visitor of the address
-//   EventID  eid;  // EventID of last visitor
-//   ReqType  req;  // request type, read or write
-// };
-
 struct SMEntry {
   bool valid;
   ThreadID tid;  // last visitor of the address
@@ -111,20 +65,13 @@ private:
 namespace trace_capture{
 
   std::unordered_map<addr_t, LLSM<SMbits>* > SM;
-  // const addr_t SMmask = ~0xffff;
-
-  // CurEventID walk(addr_t addr, ThreadID thread, ReqType req) { // maybe deleted soon, implemented in recordComm maybe better.
-  //   auto it = SM.find(addr & SMmask);
-  //   if (it == SM.end()) {
-  //     SM[addr & SMmask] = new LLSM<4096>;
-  //   }
-  //   return SM[addr & SMmask]->walk(addr, thread, req);
-  // }
+  std::queue<LLSM<SMbits>*> SMList;    // used to recycle the space of shadow memory
 
   bool walk(addr_t vaddr, ThreadID threadId, EventID eventId, int bytes, ReqType req, CommList* list) {
     addr_t pos = vaddr >> SMbits;
     if (SM.find(pos) == SM.end()) {
       SM[pos] = new LLSM<SMbits>;
+      SMList.push(SM[pos]);
     }
 
     bool ret = false;
@@ -141,6 +88,15 @@ namespace trace_capture{
       }
     }
     return ret;
+  }
+
+  void clearSM() {
+    while (!SMList.empty()) {
+      delete SMList.front();
+      SMList.pop();
+    }
+    
+    SM.clear();
   }
 }
 

@@ -19,6 +19,8 @@ namespace trace_capture {
 
   extern void init();
   extern void init_pthread_addr(uint64_t addr);
+  extern void reset();
+  extern void clear();
   extern void exit();
   extern void recordComp(uint32_t isIOP, insn_bits_t insn, uint64_t pc);
   extern void recordMem(uint64_t vaddr, uint64_t addr, uint64_t bytes, int type, uint64_t pc, uint64_t val);
@@ -35,6 +37,7 @@ namespace trace_capture {
   extern bool isThreadAPI(uint64_t pc);
 
   extern void recordPC(uint64_t paddr);  // record the physical address of pc
+  extern void updatePC(uint64_t offset);
 
   void recordEvent(processor_t* proc, uint64_t opc, insn_bits_t insn, uint64_t pc);
 }
@@ -61,12 +64,14 @@ protected:
       this->val |= val;
       if (this->val == 3) {
         this->proc->capture = true;
+        trace_capture::reset();
         trace_capture::mapThreadId(this->proc->get_state()->csrmap[CSR_SSCRATCH]->read(), 1);   // map the main thread to ID: 1
       }
     } else {
       this->val = 0;
       this->proc->capture = false;
       trace_capture::recordEnd();
+      trace_capture::clear();
     }
     return true;
   }

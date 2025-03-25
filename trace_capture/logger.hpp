@@ -1,15 +1,6 @@
 #ifndef TC_LOGGER_HPP
 #define TC_LOGGER_HPP
 
-#include <cassert>
-#include <cstdint>
-#include <cstdio>
-#include <fstream>
-#include <iostream>
-#include <iomanip>
-#include <string>
-#include <queue>
-
 #include "event.hpp"
 
 #define output(width, var) std::hex << std::setw(width) << std::setfill('0') << var
@@ -18,7 +9,11 @@
 class traceLogger {
 public:
   traceLogger(ThreadID threadId, const std::string& eventDir, size_t BSize = 1024) :
-    threadId(threadId), BufferSize(BSize) {
+    threadId(threadId), BufferSize(BSize), logLock(logMtx) {
+      if (!std::filesystem::exists(eventDir)) {
+        std::filesystem::create_directory(eventDir);
+      }
+
       if (threadId == 0) 
         filename = eventDir + "/kernel.out";
       else
@@ -28,6 +23,10 @@ public:
         std::cerr << "Error opening file:" << filename << std::endl;
         assert(0); 
       }
+
+      buffer = new eventQueue;
+      assert(buffer != nullptr);
+      logThread = std::thread(std::bind(&(this->flush), this));
     }
 
   ~traceLogger() {
@@ -35,29 +34,43 @@ public:
   }
 
   void record(traceEvent newEvent) {
-    buffer.push(newEvent);
-    if (buffer.size() == BufferSize || newEvent.tag == Tag::END_OF_EVENTS || newEvent.tag == Tag::SWITCH_TO_USER)
-      flush();
+    buffer->push(newEvent);
+    if (buffer->size() == BufferSize || newEvent.tag == Tag::END_OF_EVENTS || newEvent.tag == Tag::SWITCH_TO_USER) {
+      // flush(this);
+      bufferMtx.lock();
+      outputBuffer.push(buffer);
+      bufferMtx.unlock();
+
+      buffer = new eventQueue;
+      assert(buffer != nullptr);
+
+      logCond.notify_one();
+    }
   }
 
   uint64_t getPos() {
     return traceFile.tellp();
   }
 
-  // traceEvent *curEvent() {
-  //   if (buffer.empty())
-  //     return nullptr;
-  //   return &buffer.back();
-  // }
+  void join() {
+    logThread.join();
+  }
 
 private:
   ThreadID threadId;
 
-  std::queue<traceEvent> buffer;
+  eventQueue* buffer;
+  std::queue<eventQueue*> outputBuffer;
   size_t BufferSize;
+  std::mutex bufferMtx;
 
   std::string filename;
   std::ofstream traceFile;
+
+  std::thread logThread;
+  std::mutex logMtx;
+  std::unique_lock<std::mutex> logLock;
+  std::condition_variable logCond;
 
   void APIinfo(PThread pThread) {
     switch(pThread.type) {
@@ -85,10 +98,10 @@ private:
     }
   }
 
-  void flush() {
-    while (!buffer.empty()) {
-      traceEvent ev = buffer.front();
-      buffer.pop();
+  bool writeTrace(eventQueue* events) {
+    while(!events->empty()) {
+      traceEvent ev = events->front();
+      events->pop();
 
       switch (ev.tag) {
         case Tag::COMPUTE: 
@@ -113,27 +126,53 @@ private:
           traceFile << ev.evMark.ch << " " << std::dec << ev.evMark.info << " " << ev.evMark.eventId << std::endl;
           break;  
         case Tag::SWITCH_TO_USER:
+          traceFile << ev.evMark.ch << std::endl;
+          break;
         case Tag::END_OF_EVENTS:
           traceFile << ev.evMark.ch << std::endl;
-          break;  
-        // case Tag::ECALL:
-        //   traceFile << "4 " << output(16, ev.pc) << " ECALL " << std::dec << ev.ecall.sysId << " " << ev.ecall.kernelEv << std::endl;
-        //   break;
+          return false;
+          break;
         default:
-          std::cerr << "Unexpected Thread Event Type!" << std::endl;
+          std::cerr << "Unexpected Thread Event Type: " << int(ev.tag) << std::endl;
+          assert(0);
           break;
       }
+    }
+    return true;
+  }
+
+  static void flush(traceLogger* logger) {
+    bool work = true;
+    while (work) {
+      logger->logCond.wait(logger->logLock);
+
+      logger->bufferMtx.lock();
+      while (!logger->outputBuffer.empty()) {
+        eventQueue* events = logger->outputBuffer.front();
+        logger->outputBuffer.pop();
+        logger->bufferMtx.unlock();
+
+        work = logger->writeTrace(events);
+        delete events;
+
+        logger->bufferMtx.lock();
+      }
+      logger->bufferMtx.unlock();
     }
   }
 };
 
-class metaLogger {
+class testLogger {
   /**
    * record useful metadata, just for test now
    */
 public:
-  metaLogger(const std::string& eventDir) :
-    filename(eventDir + "/metadata.out") {
+  testLogger(const std::string& eventDir) :
+    filename(eventDir + "/test.out"), testCnt(0) {
+      if (!std::filesystem::exists(eventDir)) {
+        std::filesystem::create_directory(eventDir);
+      }
+
       traceFile.open(filename.c_str(), std::ios::out | std::ios::trunc);
       if (!traceFile.is_open()) {
         std::cerr << "Error opening file:" << filename << std::endl;
@@ -141,17 +180,31 @@ public:
       }
     }
   
-  ~metaLogger() {
+  ~testLogger() {
     traceFile.close();
   }
 
-  void record(ThreadID threadId, uint64_t satp, uint64_t sscratch){
-    traceFile << std::dec << threadId << " " << output(16, satp) << " " << output(16, sscratch) << std::endl;
+  // void record(ThreadID threadId, uint64_t satp, uint64_t sscratch){
+  //   traceFile << std::dec << threadId << " " << output(16, satp) << " " << output(16, sscratch) << std::endl;
+  // }
+
+  void recordTime(int type) {
+    if (type) {
+      ed = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> time = ed - st;
+      traceFile << " Testcase " << testCnt << " Finished! Time: " << time.count() << "s" << std::endl;
+      testCnt++;
+    }
+    else {
+      st = std::chrono::high_resolution_clock::now();
+    }
   }
 
 private:
   std::string filename;
   std::ofstream traceFile;
+  std::chrono::high_resolution_clock::time_point st, ed;
+  int testCnt;
 };
 
 #endif

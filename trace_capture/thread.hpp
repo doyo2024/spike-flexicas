@@ -107,6 +107,14 @@ namespace trace_capture {
     auto it = valToID.find(std::make_pair(satp, value));
     return (it == valToID.end()) ? -1 : it->second;
   }
+
+  void clearThreadInfo() {
+    now = ThreadAPI::UNDEFINED;
+    threadAPI.clear();
+    threadMap.clear();
+    addrToID.clear();
+    valToID.clear();
+  }
 }
 
 #endif

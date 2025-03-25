@@ -12,7 +12,7 @@ template<class T, uint32_t N>
 class regs {
 public:
   regs() {
-    memset(reg, 0,  sizeof(reg));
+    reset();
   }
 
   void update(T data, int id) {
@@ -21,6 +21,10 @@ public:
 
   T get(int id) {
     return reg[id];
+  }
+
+  void reset() {
+    memset(reg, 0,  sizeof(reg));
   }
 
 private:
