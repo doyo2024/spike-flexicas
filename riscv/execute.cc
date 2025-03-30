@@ -164,7 +164,7 @@ static inline reg_t execute_insn_fast(processor_t* p, reg_t pc, insn_fetch_t fet
   if (pc == trace_capture::START) {
   // if (pc == trace_capture::MAIN) {
     p->get_state()->csrmap[trace_capture::CSR_TRACE]->write(2);
-  } else if (p->capture && fetch.insn.bits() == 0x73) {
+  } else if (trace_capture::capture && fetch.insn.bits() == 0x73) {
     // state_t* state = p->get_state();
     // trace_capture::recordArgs(state->XPR[4], 4);       // record register tp, just for test
     // trace_capture::recordArgs(state->XPR[17], 17);     // record a7, system call number.
@@ -305,7 +305,7 @@ void processor_t::step(size_t n)
         for (auto ic_entry = _mmu->access_icache(pc); ; ) {
           auto fetch = ic_entry->data;
           pc = execute_insn_fast(this, pc, fetch);
-          trace_capture::updatePC(pc - state.pc);
+          trace_capture::updatePC(pc - state.pc, coreId);
           ic_entry = ic_entry->next;
           if (unlikely(ic_entry->tag != pc))
             break;

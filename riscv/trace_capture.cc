@@ -3,6 +3,8 @@
 namespace trace_capture {
   uint64_t START; // the entrance address
   uint64_t MAIN;  // the main function
+  uint64_t traceSignal = 0;
+  bool capture = false;   // When true, begin to capture trace
 
   // uint64_t ppc;   // the physical address of pc
 
@@ -14,23 +16,23 @@ namespace trace_capture {
     state_t* state = proc->get_state();
 
     //TODO: change the time for registers record, this may influence the effect
-    recordArgs(state->XPR[4], 4);                              // record register tp, just for test
-    recordSATP(state->satp->read());                           // record CSR satp
-    recordSSCRATCH(state->csrmap[CSR_SSCRATCH]->read());       // record CSR sscratch
-    recordArgs(state->XPR[10], 10);     // just for test
-    recordArgs(state->XPR[13], 13);
+    recordArgs(state->XPR[4], 4, proc->coreId);                              // record register tp, just for test
+    recordSATP(state->satp->read(), proc->coreId);                           // record CSR satp
+    recordSSCRATCH(state->csrmap[CSR_SSCRATCH]->read(), proc->coreId);       // record CSR sscratch
+    recordArgs(state->XPR[10], 10, proc->coreId);     // just for test
+    recordArgs(state->XPR[13], 13, proc->coreId);
 
     if (isThreadAPI(pc)) {
       for (int i = 10; i <= 17; i++) {
-        recordArgs(state->XPR[i], i);
+        recordArgs(state->XPR[i], i, proc->coreId);
       }                                   // record the 8 registers used for function argument
-      recordAPI(pc);
+      recordAPI(pc, proc->coreId);
     // } else if (opc == 0x73) {
     //   state_t* state = proc->get_state();
     //   recordArgs(state->XPR[4], 4);       // record register tp, just for test
     //   recordArgs(state->XPR[17], 17);     // record a7, system call number.
     //   recordEcall(pc);
     }
-    compTypeCheck(opc, insn, pc);
+    compTypeCheck(opc, insn, pc, proc->coreId);
   }
 }

@@ -120,11 +120,11 @@ public:
       if(tr.va) assert(check_tlb_permission_data(tr.pte, LOAD));
       if(is_memory(paddr)) {
         flexicas::read(paddr, core, false);
-        if (proc->capture) {
-          trace_capture::recordArgs(proc->get_state()->XPR[4], 4);                              // record register tp, just for test
-          trace_capture::recordSATP(proc->get_state()->satp->read());                           // record CSR satp
-          trace_capture::recordSSCRATCH(proc->get_state()->csrmap[CSR_SSCRATCH]->read());       // record CSR sscratch
-          trace_capture::recordMem(addr, paddr, sizeof(T), 0, proc->get_state()->pc, from_target(res));
+        if (trace_capture::capture) {
+          trace_capture::recordArgs(proc->get_state()->XPR[4], 4, proc->coreId);                              // record register tp, just for test
+          trace_capture::recordSATP(proc->get_state()->satp->read(), proc->coreId);                           // record CSR satp
+          trace_capture::recordSSCRATCH(proc->get_state()->csrmap[CSR_SSCRATCH]->read(), proc->coreId);       // record CSR sscratch
+          trace_capture::recordMem(addr, paddr, sizeof(T), 0, proc->get_state()->pc, from_target(res), proc->coreId);
         }
       }
     }
@@ -178,11 +178,11 @@ public:
       if(tr.va) assert(check_tlb_permission_data(tr.pte, STORE));
       if(is_memory(paddr)){ 
         flexicas::write(paddr, core);
-        if (proc->capture) {
-          trace_capture::recordArgs(proc->get_state()->XPR[4], 4);                              // record register tp, just for test
-          trace_capture::recordSATP(proc->get_state()->satp->read());                           // record CSR satp
-          trace_capture::recordSSCRATCH(proc->get_state()->csrmap[CSR_SSCRATCH]->read());       // record CSR sscratch
-          trace_capture::recordMem(addr, paddr, sizeof(T), 1, proc->get_state()->pc, val);
+        if (trace_capture::capture) {
+          trace_capture::recordArgs(proc->get_state()->XPR[4], 4, proc->coreId);                              // record register tp, just for test
+          trace_capture::recordSATP(proc->get_state()->satp->read(), proc->coreId);                           // record CSR satp
+          trace_capture::recordSSCRATCH(proc->get_state()->csrmap[CSR_SSCRATCH]->read(), proc->coreId);       // record CSR sscratch
+          trace_capture::recordMem(addr, paddr, sizeof(T), 1, proc->get_state()->pc, val, proc->coreId);
         }
       }
     }
@@ -359,7 +359,7 @@ public:
     int length = insn_length(insn);
 
     uint64_t paddr = addr + tlb_entry.target_offset;
-    trace_capture::recordPC(paddr);
+    trace_capture::recordPC(paddr, proc->coreId);
     if(is_memory(paddr)) flexicas::read(paddr, core, true); // normally more than one instruction is readed per refill
 
     if (likely(length == 4)) {
@@ -390,7 +390,7 @@ public:
     if (likely(entry->tag == addr)) {
       auto tlb_entry = translate_insn_addr(addr); // must have hit in software tlb
       uint64_t paddr = addr + tlb_entry.target_offset;
-      trace_capture::recordPC(paddr);
+      trace_capture::recordPC(paddr, proc->coreId);
       if(is_memory(paddr)) flexicas::read(paddr, core, true);
       return entry;
     }

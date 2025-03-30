@@ -363,8 +363,8 @@ public:
 
   void check_if_lpad_required();
 
-  // When true, begin to capture trace
-  bool capture;
+  // ID of the core
+  uint8_t coreId;
 
 private:
   const isa_parser_t * const isa;

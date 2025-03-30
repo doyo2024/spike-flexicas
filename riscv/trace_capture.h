@@ -13,31 +13,33 @@ namespace trace_capture {
   // static const unsigned int START = 0x10450;    // the entrance address of new process.
   extern uint64_t START; // the entrance address
   extern uint64_t MAIN;  // the main function
-  extern uint64_t CLONE_END;  // the return address after ecall 435
+  extern uint64_t CLONE_END;
+  extern uint64_t traceSignal;
+  extern bool capture;
   static const unsigned int CSR_TRACE  = 0x800; // id of the csr used by start trace generation.
   static const unsigned int CSR_THREAD = 0x801; // id of the csr used by record addresses of pthreadAPIs.
 
-  extern void init();
+  extern void init(int nproc);
   extern void init_pthread_addr(uint64_t addr);
   extern void reset();
   extern void clear();
   extern void exit();
-  extern void recordComp(uint32_t isIOP, insn_bits_t insn, uint64_t pc);
-  extern void recordMem(uint64_t vaddr, uint64_t addr, uint64_t bytes, int type, uint64_t pc, uint64_t val);
+  extern void recordMem(uint64_t vaddr, uint64_t addr, uint64_t bytes, int type, uint64_t pc, uint64_t val, uint8_t coreId);
   extern void recordEnd();
-  extern void recordAPI(uint64_t pc);
+  extern void recordAPI(uint64_t pc, uint8_t coreId);
   // extern void recordEcall(uint64_t pc);
-  extern void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc);
+  extern void compTypeCheck(uint64_t opc, insn_bits_t insn, uint64_t pc, uint8_t coreId);
 
-  extern void recordArgs(int64_t data, int id);
-  extern void recordSATP(int64_t data);
-  extern void recordSSCRATCH(int64_t data);
+  extern void recordArgs(int64_t data, int id, uint8_t coreId);
+  extern void recordSATP(int64_t data, uint8_t coreId);
+  extern void recordSSCRATCH(int64_t data, uint8_t coreId);
 
+  extern void changeCore(int16_t threaId, uint8_t coreId);
   extern void mapThreadId(addr_t taskAddr, int16_t threadId);
   extern bool isThreadAPI(uint64_t pc);
 
-  extern void recordPC(uint64_t paddr);  // record the physical address of pc
-  extern void updatePC(uint64_t offset);
+  extern void recordPC(uint64_t paddr, uint8_t coreId);  // record the physical address of pc
+  extern void updatePC(uint64_t offset, uint8_t coreId);
 
   void recordEvent(processor_t* proc, uint64_t opc, insn_bits_t insn, uint64_t pc);
 }
@@ -62,14 +64,17 @@ protected:
   virtual bool unlogged_write(const reg_t val) noexcept override {
     if (val) {
       this->val |= val;
-      if (this->val == 3) {
-        this->proc->capture = true;
+      trace_capture::traceSignal |= val;
+      if (trace_capture::traceSignal == 3) {
+        trace_capture::capture = true;
         trace_capture::reset();
         trace_capture::mapThreadId(this->proc->get_state()->csrmap[CSR_SSCRATCH]->read(), 1);   // map the main thread to ID: 1
+        trace_capture::changeCore(1, this->proc->coreId);
       }
     } else {
       this->val = 0;
-      this->proc->capture = false;
+      trace_capture::traceSignal = 0;
+      trace_capture::capture = false;
       trace_capture::recordEnd();
       trace_capture::clear();
     }
