@@ -22,7 +22,8 @@ enum class ThreadAPI : uint8_t {
     PTHREAD_BARRIER_WAIT,
     PTHREAD_BARRIER_DESTROY,
     PTHREAD_COND_WAIT,
-    PTHREAD_COND_SIGNAL
+    PTHREAD_COND_SIGNAL,
+    FORK
   };
 
 const char* APItoString(ThreadAPI type) {

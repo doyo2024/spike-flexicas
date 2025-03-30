@@ -5,8 +5,7 @@
  * Record information about each processor.
  */
 
-#include <cstdint>
-#include <cstring>
+#include "types.hpp"
 
 template<class T, uint32_t N>
 class regs {
@@ -19,12 +18,18 @@ public:
     reg[id] = data;
   }
 
+  void add(T data, int id) {
+    reg[id] += data;
+  }
+
   T get(int id) {
     return reg[id];
   }
 
   void reset() {
-    memset(reg, 0,  sizeof(reg));
+    // Don't reset physical pc, it needs to synchronize with the pc in Spike.
+    for (int i = 0; i <= 33; i++)
+      reg[i] = 0;
   }
 
 private:
@@ -35,53 +40,49 @@ private:
  * 0 ~ 31 : x0 ~ x31
  * 32 : satp
  * 33 : sscratch
+ * 34 : physical PC
  */
-typedef regs<int64_t, 34> traceRegs; 
+typedef regs<int64_t, 35> traceRegs; 
 
 namespace trace_capture {
-  ProcID procId;
   std::vector<traceRegs *> Args;               // record function arguments for each core
 
-  void recordArgs(int64_t data, int id) {
-    Args[procId]->update(data, id);
+  void recordArgs(int64_t data, int id, CoreID coreId) {
+    Args[coreId]->update(data, id);
   }
 
-  void recordSATP(int64_t data) {
-    Args[procId]->update(data, 32);
+  void recordSATP(int64_t data, CoreID coreId) {
+    Args[coreId]->update(data, 32);
   }
 
-  void recordSSCRATCH(int64_t data) {
-    Args[procId]->update(data, 33);
+  void recordSSCRATCH(int64_t data, CoreID coreId) {
+    Args[coreId]->update(data, 33);
   }
 
-  int64_t getArgs(int id) {
-    return Args[procId]->get(id);
+  int64_t getArgs(int id, CoreID coreId) {
+    return Args[coreId]->get(id);
   }
 
-  int64_t getTP() {
-    return Args[procId]->get(4);
+  int64_t getSATP(CoreID coreId) {
+    return Args[coreId]->get(32);
   }
 
-  int64_t getSATP() {
-    return Args[procId]->get(32);
+  int64_t getSSCRATCH(CoreID coreId) {
+    return Args[coreId]->get(33);
   }
 
-  int64_t getSSCRATCH() {
-    return Args[procId]->get(33);
-  }
-
-  addr_t physicalPC;                            // the physical address of pc
+  // addr_t physicalPC;                            // the physical address of pc
   
-  void recordPC(addr_t paddr) {
-    physicalPC = paddr;
+  void recordPC(addr_t paddr, CoreID coreId) {
+    Args[coreId]->update(paddr, 34);
   }
 
-  void updatePC(addr_t offset) {
-    physicalPC += offset;
+  void updatePC(addr_t offset, CoreID coreId) {
+    Args[coreId]->add(offset, 34);
   }
 
-  addr_t getPC() {
-    return physicalPC;
+  addr_t getPC(CoreID coreId) {
+    return Args[coreId]->get(34);
   }
 }
 

@@ -12,6 +12,7 @@ enum class Tag : uint8_t {
   MEMORY,         // A memory request, either read or write.
   COMMUNICATION,  // Communication between different threads, a special memory request.
   PTHREAD,        // Pthread API.
+  KERNEL,         // Compressed events in kernel.
   // ECALL,          // ecall
   SWITCH_TO_KERNEL,
   SWITCH_TO_USER,
@@ -27,7 +28,7 @@ struct MemEvent {
   uint64_t vaddr;   // virtual address, just for tests
   uint64_t addr;    // pyhsical address
   uint64_t bytes;   // number of the requested bytes
-  uint64_t val;     // just for test
+  uint64_t val;
   int type;         // =0 read, =1 write
   // ReqType type;     // read or write
 };
@@ -36,7 +37,7 @@ struct CommEvent {
   uint64_t vaddr;   // virtual address, just for tests
   uint64_t addr;    // pyhsical address
   uint64_t bytes;   // number of the requested bytes
-  uint64_t val;     // just for test
+  uint64_t val;
   CommList* comm;
 };
 
@@ -44,6 +45,7 @@ struct Marker {
   char ch;
   uint64_t info;
   EventID eventId;
+  CoreID coreId;
 };
 
 struct PThread {
@@ -52,6 +54,12 @@ struct PThread {
   ThreadID targetId;  
   addr_t targetAddr;
   uint64_t arg;
+};
+
+struct InKernel {
+  uint64_t iops;
+  uint64_t flops;
+  uint64_t mems;
 };
 
 // struct EcallEvent {
@@ -63,12 +71,14 @@ struct traceEvent {
   Tag tag;
   addr_t pc, ppc;
   insn_bits_t insn;   // the instruction, just used for test and debug, may be deleted soon
+  // uint64_t tp, sscratch;
   union {
     CompEvent   compEvent;
     MemEvent    memEvent;
     CommEvent   commEvent;
     Marker      evMark;
     PThread     pThread;
+    InKernel    kernelEvent;
     // EcallEvent  ecall;
   };
 
@@ -76,10 +86,11 @@ struct traceEvent {
   using CompTagType = std::integral_constant<Tag, Tag::COMPUTE>;
   using MemTagType = std::integral_constant<Tag, Tag::MEMORY>;
   using CommTagType = std::integral_constant<Tag, Tag::COMMUNICATION>;
-  using EndTagType = std::integral_constant<Tag, Tag::END_OF_EVENTS>;
   using PThreadTagType = std::integral_constant<Tag, Tag::PTHREAD>;
+  using InKernelTagType = std::integral_constant<Tag, Tag::KERNEL>;
   using ToKernelTagType = std::integral_constant<Tag, Tag::SWITCH_TO_KERNEL>;
   using ToUserTagType = std::integral_constant<Tag, Tag::SWITCH_TO_USER>;
+  using EndTagType = std::integral_constant<Tag, Tag::END_OF_EVENTS>;
   // using EcallTagType = std::integral_constant<Tag, Tag::ECALL>;
 
   static constexpr auto UndefTag = UndefTagType{};
@@ -88,6 +99,7 @@ struct traceEvent {
   static constexpr auto CommTag = CommTagType{};
   static constexpr auto EndTag = EndTagType{};
   static constexpr auto PThreadTag = PThreadTagType{};
+  static constexpr auto InKernelTag = InKernelTagType{};
   static constexpr auto ToKernelTag = ToKernelTagType{};
   static constexpr auto ToUserTag = ToUserTagType{};
   // static constexpr auto EcallTag = EcallTagType{};
@@ -112,16 +124,20 @@ struct traceEvent {
     : pThread{api}, tag{Tag::PTHREAD}
   {}
 
-  traceEvent(ToKernelTagType, uint64_t pos, EventID eventId) noexcept
-    : evMark{'4', pos, eventId}, tag{Tag::SWITCH_TO_KERNEL}
+  traceEvent(InKernelTagType, const InKernel kernelEv) noexcept
+    : kernelEvent(kernelEv), tag(Tag::KERNEL)
+  {}
+
+  traceEvent(ToKernelTagType, uint64_t pos, EventID eventId, CoreID coreId) noexcept
+    : evMark{'@', pos, eventId, coreId}, tag{Tag::SWITCH_TO_KERNEL}
   {}
 
   traceEvent(ToUserTagType) noexcept
-    : evMark{'5', 0, 0}, tag{Tag::SWITCH_TO_USER}
+    : evMark{'#', 0, 0}, tag{Tag::SWITCH_TO_USER}
   {}
 
   traceEvent(EndTagType) noexcept
-    : evMark{'6', 0, 0}, tag{Tag::END_OF_EVENTS}
+    : evMark{'$', 0, 0}, tag{Tag::END_OF_EVENTS}
   {}
 
   // traceEvent(EcallTagType, addr_t pc, uint64_t sysID, EventID kernelEv) noexcept

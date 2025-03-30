@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <sstream>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -29,7 +31,7 @@ const std::string traceDir = "/newdisk/spike/trace"; // directory for trace stor
 typedef uint64_t insn_bits_t;
 typedef uint64_t addr_t;
 
-typedef uint8_t ProcID;
+typedef uint8_t CoreID;
 typedef int16_t ThreadID;
 typedef uint32_t CurEventID;
 typedef uint64_t EventID;
