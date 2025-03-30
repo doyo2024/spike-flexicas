@@ -543,13 +543,14 @@ int main(int argc, char** argv)
 
   flexicas::init(nprocs(), pfc_log_prefix);
 
-  trace_capture::init();
+  trace_capture::init(cfg.nprocs());
 
   for (size_t i = 0; i < cfg.nprocs(); i++)
   {
     for (auto e : extensions)
       s.get_core(i)->register_extension(e());
     s.get_core(i)->get_mmu()->set_cache_blocksz(blocksz);
+    s.get_core(i)->coreId = i;
   }
 
   s.set_debug(debug);
