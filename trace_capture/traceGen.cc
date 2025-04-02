@@ -29,6 +29,8 @@ namespace trace_capture {
   };
 
   int testCnt = 0;
+  uint64_t instCnt = 0;
+  const uint64_t instLimit = 1ull << 30;
 
   void newKernel(CoreID coreId) {
     traceHandler* newHandler = new traceHandler(0, coreId, traceDir + "/test-" + std::to_string(testCnt));
@@ -102,7 +104,7 @@ namespace trace_capture {
     testCnt++;
   }
 
-  void exit() {
+  void traceExit() {
     for (auto it : Args) {
       delete it;
     }
@@ -128,7 +130,14 @@ namespace trace_capture {
 
     curThread[0] = 1;
 
+    instCnt = 0;
+
     tlogger->recordTime(0);
+  }
+
+  bool updateInstCnt() {
+    instCnt++;
+    return instCnt >= instLimit;
   }
 
   void changeCore(ThreadID threadId, CoreID coreId) {

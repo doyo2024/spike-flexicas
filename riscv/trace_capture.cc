@@ -34,5 +34,17 @@ namespace trace_capture {
     //   recordEcall(pc);
     }
     compTypeCheck(opc, insn, pc, proc->coreId);
+
+    if (updateInstCnt()) {
+      traceEnd();
+      exit(0);
+    }
+  }
+
+  void traceEnd() {
+    traceSignal = 0;
+    capture = false;
+    recordEnd();
+    clear();
   }
 }

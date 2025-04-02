@@ -121,9 +121,9 @@ public:
       if(is_memory(paddr)) {
         flexicas::read(paddr, core, false);
         if (trace_capture::capture) {
-          trace_capture::recordArgs(proc->get_state()->XPR[4], 4, proc->coreId);                              // record register tp, just for test
-          trace_capture::recordSATP(proc->get_state()->satp->read(), proc->coreId);                           // record CSR satp
-          trace_capture::recordSSCRATCH(proc->get_state()->csrmap[CSR_SSCRATCH]->read(), proc->coreId);       // record CSR sscratch
+          // trace_capture::recordArgs(proc->get_state()->XPR[4], 4, proc->coreId);                              // record register tp, just for test
+          // trace_capture::recordSATP(proc->get_state()->satp->read(), proc->coreId);                           // record CSR satp
+          // trace_capture::recordSSCRATCH(proc->get_state()->csrmap[CSR_SSCRATCH]->read(), proc->coreId);       // record CSR sscratch
           trace_capture::recordMem(addr, paddr, sizeof(T), 0, proc->get_state()->pc, from_target(res), proc->coreId);
         }
       }
@@ -179,9 +179,9 @@ public:
       if(is_memory(paddr)){ 
         flexicas::write(paddr, core);
         if (trace_capture::capture) {
-          trace_capture::recordArgs(proc->get_state()->XPR[4], 4, proc->coreId);                              // record register tp, just for test
-          trace_capture::recordSATP(proc->get_state()->satp->read(), proc->coreId);                           // record CSR satp
-          trace_capture::recordSSCRATCH(proc->get_state()->csrmap[CSR_SSCRATCH]->read(), proc->coreId);       // record CSR sscratch
+          // trace_capture::recordArgs(proc->get_state()->XPR[4], 4, proc->coreId);                              // record register tp, just for test
+          // trace_capture::recordSATP(proc->get_state()->satp->read(), proc->coreId);                           // record CSR satp
+          // trace_capture::recordSSCRATCH(proc->get_state()->csrmap[CSR_SSCRATCH]->read(), proc->coreId);       // record CSR sscratch
           trace_capture::recordMem(addr, paddr, sizeof(T), 1, proc->get_state()->pc, val, proc->coreId);
         }
       }

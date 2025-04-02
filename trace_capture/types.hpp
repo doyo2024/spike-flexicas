@@ -24,7 +24,7 @@
 
 /********** file **********/
 
-const std::string traceDir = "/newdisk/spike/trace"; // directory for trace storage
+const std::string traceDir = "/home/yzx/yzx/trace/attack"; // directory for trace storage
 
 /********** common useful types **********/
 

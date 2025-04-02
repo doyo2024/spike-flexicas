@@ -183,6 +183,16 @@ static inline reg_t execute_insn_logged(processor_t* p, reg_t pc, insn_fetch_t f
   reg_t npc;
 
   try {
+    if (pc == trace_capture::START) {
+      // if (pc == trace_capture::MAIN) {
+      p->get_state()->csrmap[trace_capture::CSR_TRACE]->write(2);
+    } else if (trace_capture::capture && fetch.insn.bits() == 0x73) {
+      // state_t* state = p->get_state();
+      // trace_capture::recordArgs(state->XPR[4], 4);       // record register tp, just for test
+      // trace_capture::recordArgs(state->XPR[17], 17);     // record a7, system call number.
+      // trace_capture::recordEcall(pc);
+      trace_capture::recordEvent(p, MATCH_ECALL, fetch.insn.bits(), pc);
+    }
     npc = fetch.func(p, fetch.insn, pc);
     if (npc != PC_SERIALIZE_BEFORE) {
       if (p->get_log_commits_enabled()) {

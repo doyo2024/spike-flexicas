@@ -232,8 +232,6 @@ private:
     outputBuffer.push(sbuffer);
     bufferMtx.unlock();
 
-    delete buffer;
-    buffer = new eventQueue;
     assert(buffer != nullptr);
   }
 
@@ -259,6 +257,7 @@ private:
           sbuffer->pop();
         }
 
+        delete sbuffer;
         logger->bufferMtx.lock();
       }
       logger->bufferMtx.unlock();

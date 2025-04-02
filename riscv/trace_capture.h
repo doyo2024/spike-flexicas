@@ -23,7 +23,7 @@ namespace trace_capture {
   extern void init_pthread_addr(uint64_t addr);
   extern void reset();
   extern void clear();
-  extern void exit();
+  extern void traceExit();
   extern void recordMem(uint64_t vaddr, uint64_t addr, uint64_t bytes, int type, uint64_t pc, uint64_t val, uint8_t coreId);
   extern void recordEnd();
   extern void recordAPI(uint64_t pc, uint8_t coreId);
@@ -41,7 +41,10 @@ namespace trace_capture {
   extern void recordPC(uint64_t paddr, uint8_t coreId);  // record the physical address of pc
   extern void updatePC(uint64_t offset, uint8_t coreId);
 
+  extern bool updateInstCnt();
+
   void recordEvent(processor_t* proc, uint64_t opc, insn_bits_t insn, uint64_t pc);
+  void traceEnd();
 }
 
 /**
@@ -73,10 +76,11 @@ protected:
       }
     } else {
       this->val = 0;
-      trace_capture::traceSignal = 0;
-      trace_capture::capture = false;
-      trace_capture::recordEnd();
-      trace_capture::clear();
+      trace_capture::traceEnd();
+      // trace_capture::traceSignal = 0;
+      // trace_capture::capture = false;
+      // trace_capture::recordEnd();
+      // trace_capture::clear();
     }
     return true;
   }

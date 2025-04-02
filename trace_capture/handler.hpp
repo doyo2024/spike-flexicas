@@ -70,8 +70,10 @@ public:
 
   void recordComm(addr_t vaddr, addr_t addr, uint64_t bytes, uint64_t pc, CommList* comm, uint64_t val) {
     if (!threadId) {
-      logger->record(traceEvent(traceEvent::InKernelTag, kEvent));
-      kEvent = {0, 0, 0};
+      // logger->record(traceEvent(traceEvent::InKernelTag, kEvent));
+      // kEvent = {0, 0, 0};
+      kEvent.mems++;
+      return;
     }
     //  else if (curEvent.tag != Tag::UNDEFINED)
     //   logger->record(curEvent);
